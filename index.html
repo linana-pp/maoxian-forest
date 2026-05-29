@@ -192,13 +192,14 @@ h1{font-size:17px;font-weight:700;color:#fff;letter-spacing:.02em}
     <button class="login-btn" onclick="doLogin()">進入</button>
   </div>
 </div>
-<div id="mainApp" style="display:none">
+<div id="mainApp">
 <div class="header">
   <h1>毛線森林－劃位表</h1>
   <div class="sync-badge">
     <div class="sync-dot loading" id="syncDot"></div>
     <span id="syncTxt">連線中…</span>
   </div>
+  <div id="printWeekLabel" style="display:none;color:rgba(255,255,255,.85);font-size:12px;margin-top:4px"></div>
 </div>
 <div class="page-schedule" id="pageSchedule">
 <div class="content">
@@ -214,7 +215,7 @@ h1{font-size:17px;font-weight:700;color:#fff;letter-spacing:.02em}
   <button class="btn-icon ghost" id="importBtn">匯入</button>
   <button class="btn-icon ghost" id="backupBtn">備份</button>
   <button class="btn-icon ghost" onclick="openPasscodeModal()">🔑 通關碼</button>
-  <button class="btn-icon ghost" onclick="exportWeek()">📄 匯出本週</button>
+  <button class="btn-icon ghost" onclick="printWeek()">🖨 列印本週</button>
   <button class="btn-icon accent" onclick="window.open('https://linana-pp.github.io/maoxian-forest/booking.html','_blank')" style="background:#2e7d52;border-color:#2e7d52">🔗 預約頁</button>
   <button class="btn-icon ghost" onclick="window.open('https://linana-pp.github.io/maoxian-forest/view.html','_blank')">📋 查看頁</button>
   <button class="btn-icon accent" onclick="openModal('checkin')" style="background:#b5451b;border-color:#b5451b">📍 打卡頁</button>
@@ -632,6 +633,8 @@ function render(){
   const dates=Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return d;});
   const sun=new Date(mon);sun.setDate(mon.getDate()+6);
   document.getElementById('wlabel').textContent=fmd(mon)+' – '+fmd(sun);
+  const pl=document.getElementById('printWeekLabel');
+  if(pl)pl.textContent=fmd(mon)+' – '+fmd(sun);
   const bar=document.getElementById('availBar');bar.innerHTML='';
   ALL_SLOTS.forEach(slot=>{let tot=0,bk=0;dates.forEach(d=>{const dow=d.getDay(),ds=fd(d);const sd=(SCHEDULE[dow]||[]).find(s=>s.key===slot.key);if(sd&&!isOff(ds,slot.key)){tot+=sd.max;bk+=gs(ds,slot.key).length;}});if(!tot)return;const p=document.createElement('div');p.className='avail-pill';p.innerHTML=`<span class="badge ${slot.cls}">${slot.label}</span> 空位 <strong>${tot-bk}</strong>/<span style="color:#bbb">${tot}</span>`;bar.appendChild(p);});
   const activeKeys=new Set();dates.forEach(d=>{(SCHEDULE[d.getDay()]||[]).forEach(s=>activeKeys.add(s.key));});
@@ -1345,23 +1348,16 @@ function saveAllCodes(){
 // ── 登入 ─────────────────────────────────────────────────
 let _adminCode=null;
 function initLogin(){
-  if(sessionStorage.getItem('mxf_auth')==='1'){
-    document.getElementById('mainApp').style.display='block';
-    return;
-  }
+  if(sessionStorage.getItem('mxf_auth')==='1')return;
   if(db){
     db.ref('knitting/settings/adminCode').get().then(snap=>{
       _adminCode=snap.val();
-      if(!_adminCode){
-        // 尚未設定密碼，直接進入
-        document.getElementById('mainApp').style.display='block';
-      } else {
+      if(_adminCode){
+        document.getElementById('mainApp').style.display='none';
         document.getElementById('loginScreen').style.display='flex';
         setTimeout(()=>document.getElementById('loginInput').focus(),100);
       }
-    }).catch(()=>{document.getElementById('mainApp').style.display='block';});
-  } else {
-    document.getElementById('mainApp').style.display='block';
+    });
   }
 }
 document.getElementById('loginInput').onkeydown=e=>{if(e.key==='Enter')doLogin();};
@@ -1378,8 +1374,8 @@ function doLogin(){
     setTimeout(()=>{document.getElementById('loginInput').style.borderColor='#ddd';document.getElementById('loginErr').textContent='';},1500);
   }
 }
+function printWeek(){window.print();}
 
-// ── 啟動 ─────────────────────────────────────────────────
 // 先從 localStorage 快速顯示
 try{const v=JSON.parse(localStorage.getItem('knitting_v9')||'null');if(v)data=v;}catch(e){}
 render();
@@ -1593,6 +1589,36 @@ function exportBooking(){
   document.body.appendChild(a);a.click();document.body.removeChild(a);
   URL.revokeObjectURL(a.href);
 }
+
+function printWeek(){window.print();}
 </script>
+<style>
+@media print{
+  .login-screen,.toolbar,.avail-bar,.page-records,
+  .modal-bg,.modal2-bg,.sync-badge{display:none!important}
+  #printWeekLabel{display:block!important}
+  .header{background:#4b6cb3!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;text-align:center;padding:.75rem 1rem}
+  body{background:#fff}
+  .content{padding:.5rem 1rem}
+  .slot-toggle,.empty-slot,.edit-icon{display:none!important}
+  .row-label{padding-right:4px}
+  .badge{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .bm{background:#EAF3DE!important;color:#27500A!important}
+  .ba{background:#E6F1FB!important;color:#0C447C!important}
+  .bn{background:#FAEEDA!important;color:#633806!important}
+  .name-chip{background:#FCEBEB!important;border-color:#F7C1C1!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .cell{min-height:36px!important;border:0.5px solid #ddd!important;background:#fff!important}
+  .cell.sched-closed{background:#f2f2f2!important;border:none!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .cell.past{opacity:1!important}
+  .col-head{background:#EEF4FF!important;color:#1a1a1a!important;font-size:11px!important;font-weight:600!important;border:0.5px solid #c5d8f5!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .col-head.today{background:#4b6cb3!important;color:#fff!important;border-color:#4b6cb3!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .col-head.past-head{background:#f5f5f5!important;color:#bbb!important;border-color:#eee!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .col-head.no-class{background:#f5f5f5!important;color:#bbb!important;border:none!important}
+  .row-label{padding-right:6px}
+  .row-time{display:block!important;font-size:9px;color:#666!important}
+  .grid{gap:2px!important}
+  .type-tag{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
 </body>
 </html>
