@@ -125,6 +125,17 @@ h1{font-size:17px;font-weight:700;color:#fff;letter-spacing:.02em}
 .page-records.active{display:block}
 .page-schedule{display:block}
 .page-schedule.hidden{display:none}
+/* 登入畫面 */
+.login-screen{position:fixed;inset:0;background:#f4f6fb;display:flex;align-items:center;justify-content:center;z-index:999;padding:1rem}
+.login-box{background:#fff;border-radius:16px;padding:2rem 1.75rem;width:100%;max-width:320px;box-shadow:0 8px 32px rgba(75,108,179,.15);text-align:center}
+.login-logo{font-size:32px;margin-bottom:10px}
+.login-title{font-size:18px;font-weight:700;color:#1a1a1a;margin-bottom:4px}
+.login-sub{font-size:12px;color:#888;margin-bottom:20px}
+.login-input{width:100%;padding:11px 14px;border:1.5px solid #ddd;border-radius:10px;font-size:15px;outline:none;text-align:center;font-family:inherit;margin-bottom:8px;letter-spacing:.1em}
+.login-input:focus{border-color:#4b6cb3}
+.login-btn{width:100%;padding:12px;background:#4b6cb3;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;transition:background .15s}
+.login-btn:hover{background:#3a5a9b}
+.login-err{font-size:11px;color:#E24B4A;min-height:16px;margin-bottom:8px}
 .rec-page-content{max-width:720px;margin:0 auto;padding:1.5rem 1rem}
 .rec-page-toolbar{display:flex;gap:8px;margin-bottom:1.25rem;flex-wrap:wrap;align-items:center}
 .rec-search{flex:1;min-width:160px;padding:8px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;background:#fff;outline:none}
@@ -171,6 +182,17 @@ h1{font-size:17px;font-weight:700;color:#fff;letter-spacing:.02em}
 </style>
 </head>
 <body>
+<div class="login-screen" id="loginScreen" style="display:none">
+  <div class="login-box">
+    <div class="login-logo">🧶</div>
+    <div class="login-title">毛線森林</div>
+    <div class="login-sub">請輸入管理密碼</div>
+    <input class="login-input" id="loginInput" type="password" placeholder="••••••" maxlength="30"/>
+    <div class="login-err" id="loginErr"></div>
+    <button class="login-btn" onclick="doLogin()">進入</button>
+  </div>
+</div>
+<div id="mainApp" style="display:none">
 <div class="header">
   <h1>毛線森林－劃位表</h1>
   <div class="sync-badge">
@@ -191,6 +213,7 @@ h1{font-size:17px;font-weight:700;color:#fff;letter-spacing:.02em}
   <button class="btn-icon accent" id="manualBtn">＋ 新增學生</button>
   <button class="btn-icon ghost" id="importBtn">匯入</button>
   <button class="btn-icon ghost" id="backupBtn">備份</button>
+  <button class="btn-icon ghost" onclick="openPasscodeModal()">🔑 通關碼</button>
   <button class="btn-icon ghost" onclick="exportWeek()">📄 匯出本週</button>
   <button class="btn-icon accent" onclick="window.open('https://linana-pp.github.io/maoxian-forest/booking.html','_blank')" style="background:#2e7d52;border-color:#2e7d52">🔗 預約頁</button>
   <button class="btn-icon ghost" onclick="window.open('https://linana-pp.github.io/maoxian-forest/view.html','_blank')">📋 查看頁</button>
@@ -217,6 +240,7 @@ h1{font-size:17px;font-weight:700;color:#fff;letter-spacing:.02em}
     <div class="stu-list" id="stuList"></div>
   </div>
 </div>
+</div><!-- end mainApp -->
 
 <!-- 新增學生 modal -->
 <div class="modal2-bg" id="recAddModal" style="display:none">
@@ -276,6 +300,21 @@ h1{font-size:17px;font-weight:700;color:#fff;letter-spacing:.02em}
     <div class="modal2-btns">
       <button onclick="closeModal2('recDelModal')">取消</button>
       <button class="m2-danger" onclick="doRecDel()">確認刪除</button>
+    </div>
+  </div>
+</div>
+
+<!-- 通關碼設定 -->
+<div class="modal-bg" id="passcodeModal" style="display:none">
+  <div class="modal">
+    <h3>設定密碼</h3>
+    <p style="font-size:11px;color:#888;margin-bottom:14px;line-height:1.6">管理密碼（進入劃位表用）</p>
+    <input id="adminCodeInput" type="password" placeholder="設定管理密碼（留空=不設密碼）" maxlength="30" style="margin-bottom:12px"/>
+    <p style="font-size:11px;color:#888;margin-bottom:8px;line-height:1.6;border-top:0.5px solid #eee;padding-top:12px">預約頁通關碼（學生預約用）</p>
+    <input id="passcodeInput" placeholder="設定通關碼（留空=不設密碼）" maxlength="20"/>
+    <div class="modal-btns">
+      <button onclick="document.getElementById('passcodeModal').style.display='none'">取消</button>
+      <button class="confirm" onclick="saveAllCodes()">儲存</button>
     </div>
   </div>
 </div>
@@ -1276,10 +1315,75 @@ function openRecDelModal(key){
   document.getElementById('recDelModal').style.display='flex';
 }
 
+function openPasscodeModal(){
+  if(db){
+    db.ref('knitting/settings').get().then(snap=>{
+      const s=snap.val()||{};
+      document.getElementById('adminCodeInput').value='';
+      document.getElementById('passcodeInput').value=s.bookingCode||'';
+    });
+  }
+  document.getElementById('passcodeModal').style.display='flex';
+  setTimeout(()=>document.getElementById('adminCodeInput').focus(),50);
+}
+function savePasscode(){saveAllCodes();}
+function saveAllCodes(){
+  const adminCode=document.getElementById('adminCodeInput').value.trim();
+  const bookingCode=document.getElementById('passcodeInput').value.trim();
+  if(db){
+    if(adminCode)db.ref('knitting/settings/adminCode').set(adminCode);
+    db.ref('knitting/settings/bookingCode').set(bookingCode||null);
+  }
+  document.getElementById('passcodeModal').style.display='none';
+  let msg='';
+  if(adminCode)msg+=`管理密碼已設定\n`;
+  if(bookingCode)msg+=`預約頁通關碼已設為「${bookingCode}」`;
+  else msg+='預約頁不需通關碼';
+  alert(msg||'設定已儲存');
+}
+
+// ── 登入 ─────────────────────────────────────────────────
+let _adminCode=null;
+function initLogin(){
+  if(sessionStorage.getItem('mxf_auth')==='1'){
+    document.getElementById('mainApp').style.display='block';
+    return;
+  }
+  if(db){
+    db.ref('knitting/settings/adminCode').get().then(snap=>{
+      _adminCode=snap.val();
+      if(!_adminCode){
+        // 尚未設定密碼，直接進入
+        document.getElementById('mainApp').style.display='block';
+      } else {
+        document.getElementById('loginScreen').style.display='flex';
+        setTimeout(()=>document.getElementById('loginInput').focus(),100);
+      }
+    }).catch(()=>{document.getElementById('mainApp').style.display='block';});
+  } else {
+    document.getElementById('mainApp').style.display='block';
+  }
+}
+document.getElementById('loginInput').onkeydown=e=>{if(e.key==='Enter')doLogin();};
+function doLogin(){
+  const val=document.getElementById('loginInput').value;
+  if(val===_adminCode){
+    sessionStorage.setItem('mxf_auth','1');
+    document.getElementById('loginScreen').style.display='none';
+    document.getElementById('mainApp').style.display='block';
+  } else {
+    document.getElementById('loginErr').textContent='密碼錯誤，請再試一次';
+    document.getElementById('loginInput').value='';
+    document.getElementById('loginInput').style.borderColor='#E24B4A';
+    setTimeout(()=>{document.getElementById('loginInput').style.borderColor='#ddd';document.getElementById('loginErr').textContent='';},1500);
+  }
+}
+
 // ── 啟動 ─────────────────────────────────────────────────
 // 先從 localStorage 快速顯示
 try{const v=JSON.parse(localStorage.getItem('knitting_v9')||'null');if(v)data=v;}catch(e){}
 render();
+initLogin();
 
 // Firebase 即時監聽（資料）
 if(dataRef){
