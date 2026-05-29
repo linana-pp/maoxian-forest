@@ -114,7 +114,13 @@ h1{font-size:17px;font-weight:700;color:#fff;letter-spacing:.02em}
 .req-actions .no{color:#E24B4A}
 .req-actions .no:hover{background:#fdecea}
 .req-empty{font-size:12px;color:#bbb;text-align:center;padding:1rem 0}
-/* 學生記錄全頁 */
+/* 學生類型標籤 */
+.type-tag{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:3px;font-size:9px;font-weight:700;flex-shrink:0;line-height:1}
+.type-單{background:#FED7AA;color:#9A3412}
+.type-冰{background:#BAE6FD;color:#0C4A6E}
+.type-兒{background:#FBCFE8;color:#9D174D}
+.type-基{background:#BBF7D0;color:#14532D}
+.type-續{background:#E9D5FF;color:#581C87}
 .page-records{display:none}
 .page-records.active{display:block}
 .page-schedule{display:block}
@@ -218,6 +224,14 @@ h1{font-size:17px;font-weight:700;color:#fff;letter-spacing:.02em}
     <h3>新增學生</h3>
     <div class="msub">輸入學生姓名建立記錄</div>
     <input id="recAddName" placeholder="姓名" maxlength="20"/>
+    <select id="recAddType" style="width:100%;margin-bottom:4px;padding:8px 10px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;font-family:inherit;background:#fff">
+      <option value="">選擇類型</option>
+      <option value="單堂">單堂</option>
+      <option value="冰淇淋">冰淇淋</option>
+      <option value="兒童">兒童</option>
+      <option value="基礎">基礎</option>
+      <option value="續報">續報</option>
+    </select>
     <div class="merr" id="recAddErr"></div>
     <div class="modal2-btns">
       <button onclick="closeModal2('recAddModal')">取消</button>
@@ -269,7 +283,15 @@ h1{font-size:17px;font-weight:700;color:#fff;letter-spacing:.02em}
 <!-- 點空格新增 -->
 <div class="modal-bg" id="dotAddModal" style="display:none">
   <div class="modal"><h3 id="dotMtitle"></h3>
-    <input id="dotMinput" placeholder="輸入學生姓名" maxlength="20"/>
+    <input id="dotMinput" placeholder="輸入學生姓名" maxlength="20" style="margin-bottom:8px"/>
+    <select id="dotMtype" style="width:100%;margin-bottom:10px;padding:7px 10px;border:0.5px solid #ddd;border-radius:8px;font-size:13px;outline:none;font-family:inherit;background:#fff">
+      <option value="">選擇類型（可略）</option>
+      <option value="單堂">單堂</option>
+      <option value="冰淇淋">冰淇淋</option>
+      <option value="兒童">兒童</option>
+      <option value="基礎">基礎</option>
+      <option value="續報">續報</option>
+    </select>
     <div class="modal-btns"><button id="dotMcancel">取消</button><button class="confirm" id="dotMconfirm">新增</button></div>
   </div>
 </div>
@@ -426,7 +448,16 @@ function renderManualTab(){
     <div class="field-label">時段</div>
     <div class="slot-pills" id="slotPills"></div>
     <div class="field-label">學生姓名</div>
-    <input id="manName" placeholder="輸入姓名" maxlength="20" style="margin-bottom:4px"/>
+    <input id="manName" placeholder="輸入姓名" maxlength="20" style="margin-bottom:8px"/>
+    <div class="field-label">類型</div>
+    <select id="manType" style="width:100%;margin-bottom:4px;padding:7px 10px;border:0.5px solid #ddd;border-radius:8px;font-size:13px;outline:none;font-family:inherit;background:#fff">
+      <option value="">選擇類型（可略）</option>
+      <option value="單堂">單堂</option>
+      <option value="冰淇淋">冰淇淋</option>
+      <option value="兒童">兒童</option>
+      <option value="基礎">基礎</option>
+      <option value="續報">續報</option>
+    </select>
     <div class="manual-result" id="manResult"></div>`;
   selectedSlot='m';buildSlotPills();
   document.getElementById('manDate').onchange=()=>buildSlotPills();
@@ -459,6 +490,11 @@ function doManualAdd(){
   if(arr.length>=sd.max){res.className='manual-result err-box';res.textContent='此時段已額滿';res.style.display='block';return;}
   if(arr.includes(name)){res.className='manual-result err-box';res.textContent=name+' 已在名單中';res.style.display='block';return;}
   arr.push(name);ss(dateStr,selectedSlot,arr);
+  // 同步更新學生記錄的類型
+  const manType=document.getElementById('manType')?document.getElementById('manType').value:'';
+  const stuKey=nk(name);
+  if(manType&&db&&!studentsData[stuKey]){db.ref('knitting/students/'+stuKey).set({name,type:manType,purchases:[]});}
+  else if(manType&&db&&studentsData[stuKey]&&!studentsData[stuKey].type){db.ref('knitting/students/'+stuKey+'/type').set(manType);}
   res.className='manual-result ok';res.textContent='✓ 已新增 '+name+'（'+fmd(d)+' '+slotName(selectedSlot)+'，'+arr.length+'/'+sd.max+'）';res.style.display='block';
   document.getElementById('manName').value='';document.getElementById('manName').focus();
   const mon=getMon(0);const diff=Math.round((d-mon)/(7*86400000));if(diff!==0)wOff+=diff;
@@ -597,6 +633,8 @@ function render(){
       }
       students.forEach((name,i)=>{
         const chip=document.createElement('div');chip.className='name-chip';
+        const type=getStudentType(name);
+        if(type){const tb=document.createElement('span');tb.className='type-tag type-'+TYPE_CHAR[type];tb.textContent=TYPE_CHAR[type];chip.appendChild(tb);}
         const nm=document.createElement('span');nm.className='nm';nm.textContent=name;nm.title=name;
         chip.appendChild(nm);
         if(!isPast){
@@ -615,12 +653,18 @@ function render(){
         empty.onclick=()=>{
           document.getElementById('dotMtitle').textContent='週'+DAYS[dow]+' '+fmd(d)+' '+slot.label;
           document.getElementById('dotMinput').value='';
+          document.getElementById('dotMtype').value='';
           document.getElementById('dotAddModal').style.display='flex';
           setTimeout(()=>document.getElementById('dotMinput').focus(),50);
           document.getElementById('dotMconfirm').onclick=()=>{
             const n=document.getElementById('dotMinput').value.trim();if(!n)return;
+            const t=document.getElementById('dotMtype').value;
             const a=gs(ds,slot.key);if(a.length>=sd.max||a.includes(n))return;
-            a.push(n);ss(ds,slot.key,a);document.getElementById('dotAddModal').style.display='none';render();
+            a.push(n);ss(ds,slot.key,a);
+            const stuKey=nk(n);
+            if(t&&db&&!studentsData[stuKey])db.ref('knitting/students/'+stuKey).set({name:n,type:t,purchases:[]});
+            else if(t&&db&&studentsData[stuKey]&&!studentsData[stuKey].type)db.ref('knitting/students/'+stuKey+'/type').set(t);
+            document.getElementById('dotAddModal').style.display='none';render();
           };
         };
         cell.appendChild(empty);
@@ -640,6 +684,7 @@ document.getElementById('dotMcancel').onclick=()=>{
   document.getElementById('dotAddModal').style.display='none';
   document.getElementById('dotMinput').type='text';
   document.getElementById('dotMinput').placeholder='輸入學生姓名';
+  document.getElementById('dotMtype').value='';
 };
 document.getElementById('dotAddModal').onclick=e=>{if(e.target===document.getElementById('dotAddModal'))document.getElementById('dotAddModal').style.display='none';};
 document.getElementById('dotMinput').onkeydown=e=>{if(e.key==='Enter')document.getElementById('dotMconfirm').click()};
@@ -1058,6 +1103,17 @@ function showSchedulePage(){
 
 // ── 學生記錄（全頁）─────────────────────────────────────
 function nk(n){return n.replace(/[.#$[\]/\s]/g,'_');}
+const TYPES=['單堂','冰淇淋','兒童','基礎','續報'];
+const TYPE_CHAR={'單堂':'單','冰淇淋':'冰','兒童':'兒','基礎':'基','續報':'續'};
+function typeTagHtml(type){
+  if(!type)return'';
+  const ch=TYPE_CHAR[type]||type[0];
+  return`<span class="type-tag type-${ch}">${ch}</span>`;
+}
+function getStudentType(name){
+  const stu=studentsData[nk(name)];
+  return stu?stu.type||'':'';
+}
 function recGetAttended(name){
   const key=nk(name);let cnt=0;
   Object.values(attendanceData).forEach(s=>{if(s&&s[key])cnt++;});
@@ -1104,7 +1160,7 @@ function recRenderList(list){
 
     card.innerHTML=`
       <div class="stu-head">
-        <div class="stu-name">${stu.name}</div>
+        <div class="stu-name">${stu.name}${stu.type?` ${typeTagHtml(stu.type)}`:''}</div>
         <div class="stu-stats">
           <span class="stat-pill pill-total">購買 ${purchased}</span>
           <span class="stat-pill pill-used">已上 ${attended}</span>
@@ -1127,6 +1183,7 @@ let recPendingKey=null;
 
 function openRecAddModal(){
   document.getElementById('recAddName').value='';
+  document.getElementById('recAddType').value='';
   document.getElementById('recAddErr').textContent='';
   document.getElementById('recAddModal').style.display='flex';
   setTimeout(()=>document.getElementById('recAddName').focus(),50);
@@ -1134,11 +1191,12 @@ function openRecAddModal(){
 document.getElementById('recAddName').onkeydown=e=>{if(e.key==='Enter')doRecAdd();};
 function doRecAdd(){
   const name=document.getElementById('recAddName').value.trim();
+  const type=document.getElementById('recAddType').value;
   const err=document.getElementById('recAddErr');
   if(!name){err.textContent='請輸入姓名';return;}
   const key=nk(name);
   if(studentsData[key]){err.textContent='此學生已存在';return;}
-  if(db)db.ref('knitting/students/'+key).set({name,purchases:[]});
+  if(db)db.ref('knitting/students/'+key).set({name,type,purchases:[]});
   closeModal2('recAddModal');
 }
 
