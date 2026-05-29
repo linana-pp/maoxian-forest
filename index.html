@@ -1,0 +1,1436 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>毛線森林－劃位表</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/tabler-icons.min.css">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;background:#f7f7f9;color:#1a1a1a;min-height:100vh}
+.header{background:#4b6cb3;padding:1rem 1.5rem;text-align:center;position:relative}
+h1{font-size:17px;font-weight:700;color:#fff;letter-spacing:.02em}
+.sync-badge{position:absolute;right:1rem;top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:5px;font-size:11px;color:rgba(255,255,255,.8)}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:#aaa;flex-shrink:0}
+.sync-dot.ok{background:#6fcf97}
+.sync-dot.err{background:#eb5757}
+.sync-dot.loading{background:#f2c94c;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.req-badge{background:#eb5757;color:#fff;font-size:10px;font-weight:700;padding:1px 5px;border-radius:10px;margin-left:4px}
+.content{max-width:960px;margin:0 auto;padding:1.25rem 1rem}
+.wrap{padding:.25rem 0}
+.toolbar{display:flex;align-items:center;gap:8px;margin-bottom:1rem;flex-wrap:wrap}
+.week-nav{display:flex;align-items:center;gap:6px}
+.week-label{font-size:14px;font-weight:500;color:#1a1a1a;min-width:155px;text-align:center}
+.btn-icon{background:#fff;border:0.5px solid #ddd;border-radius:8px;height:30px;min-width:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#444;font-size:18px;line-height:1;transition:background .15s;padding:0 8px;gap:5px}
+.btn-icon:hover{background:#f0f0f0}
+.btn-icon.accent{background:#534AB7;color:#fff;border-color:#534AB7;font-size:12px}
+.btn-icon.accent:hover{background:#3C3489}
+.btn-icon.sm{font-size:12px}
+.btn-icon.ghost{font-size:12px;color:#999}
+.avail-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem}
+.avail-pill{font-size:11px;padding:3px 9px;border-radius:20px;border:0.5px solid #e0e0e0;color:#666;display:flex;align-items:center;gap:5px;background:#fff}
+.avail-pill strong{color:#1a1a1a}
+.badge{display:inline-block;font-size:10px;font-weight:500;padding:1px 7px;border-radius:20px;line-height:1.6}
+.bm{background:#EAF3DE;color:#27500A}.ba{background:#E6F1FB;color:#0C447C}.bn{background:#FAEEDA;color:#633806}
+.grid{display:grid;gap:5px}
+.col-head{font-size:11px;font-weight:500;color:#888;text-align:center;padding:5px 3px;border-radius:8px;line-height:1.4}
+.col-head.today{background:#EEEDFE;color:#3C3489}
+.col-head.closed{opacity:.35}
+.row-label{display:flex;flex-direction:column;gap:2px;justify-content:center;align-items:flex-end;padding-right:6px}
+.row-time{font-size:9px;color:#bbb;white-space:nowrap}
+.cell{background:#fff;border:0.5px solid #e8e8e8;border-radius:8px;padding:5px;display:flex;flex-direction:column;gap:3px;transition:border-color .15s;position:relative;min-height:48px}
+.cell:hover{border-color:#ccc}
+.cell.full{border-color:#F7C1C1}
+.cell.full{border-color:#F7C1C1}
+.cell.past{background:#fafafa;opacity:.6}
+.col-head.past-head{opacity:.4}
+.cell.manual-off{border-style:dashed;background:#fafafa;align-items:center;justify-content:center;gap:3px;cursor:default}
+.off-label{font-size:9px;color:#bbb}
+.slot-toggle{display:flex;align-items:center;gap:4px;margin-bottom:2px;cursor:pointer;user-select:none;width:fit-content}
+.toggle-track{width:26px;height:14px;border-radius:7px;background:#d0f0d8;border:0.5px solid #a8ddb5;transition:all .2s;flex-shrink:0;position:relative}
+.toggle-track.off{background:#f0d0d0;border-color:#dba8a8}
+.toggle-knob{position:absolute;top:1px;left:1px;width:10px;height:10px;border-radius:50%;background:#4caf7d;transition:all .2s;box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.toggle-track.off .toggle-knob{left:13px;background:#c94040}
+.toggle-label{font-size:9px;color:#4caf7d;font-weight:500}
+.toggle-track.off+.toggle-label{color:#c94040}
+.closed-dash{font-size:11px;color:#ccc;opacity:.5}
+.name-chip{display:flex;align-items:center;background:#FCEBEB;border:0.5px solid #F7C1C1;border-radius:4px;padding:3px 6px;cursor:pointer;transition:background .12s;gap:4px;min-width:0}
+.name-chip:hover{background:#F7C1C1}
+.name-chip .nm{font-size:10px;color:#791F1F;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.name-chip .edit-icon{font-size:9px;color:#A32D2D;opacity:0;flex-shrink:0;transition:opacity .12s}
+.name-chip:hover .edit-icon{opacity:.7}
+.empty-slot{display:flex;align-items:center;justify-content:center;border:0.5px dashed #ddd;border-radius:4px;padding:2px 4px;cursor:pointer;transition:.12s;min-height:20px}
+.empty-slot:hover{background:#f5f5f5;border-color:#bbb}
+.empty-slot .plus{font-size:10px;color:#ccc}
+.seat-footer{font-size:9px;color:#bbb;margin-top:1px;text-align:right}
+.cell.full .seat-footer{color:#A32D2D}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.32);display:flex;align-items:center;justify-content:center;z-index:99;backdrop-filter:blur(2px)}
+#dotAddModal{z-index:200}
+.modal{background:#fff;border-radius:12px;padding:1.25rem;width:360px;border:0.5px solid #e0e0e0;max-height:84vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.1)}
+.modal h3{font-size:14px;font-weight:500;margin-bottom:8px;color:#1a1a1a}
+.modal input,.modal select{width:100%;margin-bottom:10px;padding:7px 10px;border:0.5px solid #ddd;border-radius:8px;font-size:13px;background:#fff;color:#1a1a1a;outline:none;font-family:inherit}
+.modal input:focus,.modal select:focus{border-color:#534AB7;box-shadow:0 0 0 3px rgba(83,74,183,.08)}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+.modal-btns button{padding:5px 13px;border-radius:8px;font-size:12px;cursor:pointer;border:0.5px solid #ddd;background:#f5f5f5;color:#444;transition:all .15s}
+.modal-btns button:hover{background:#eee}
+.confirm{background:#534AB7!important;color:#fff!important;border-color:#534AB7!important}
+.confirm:hover{background:#3C3489!important}
+.warn-confirm{background:#E24B4A!important;color:#fff!important;border-color:#E24B4A!important}
+.warn-confirm:hover{background:#c63b3a!important}
+.edit-sub{font-size:11px;color:#999;margin-bottom:10px}
+.import-row{padding:7px 0;border-bottom:0.5px solid #eee}
+.import-row:last-child{border-bottom:none}
+.import-row-head{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.import-names{font-size:12px;color:#666;line-height:1.5}
+.hint{font-size:11px;color:#999;line-height:1.6;margin-bottom:10px;padding:8px 10px;background:#f8f8f8;border-radius:8px}
+.paste-area{width:100%;min-height:72px;padding:8px 10px;border:0.5px solid #ddd;border-radius:8px;font-size:10px;font-family:monospace;background:#fff;color:#1a1a1a;resize:vertical;margin-bottom:4px;outline:none}
+.paste-area:focus{border-color:#534AB7}
+.err{font-size:11px;color:#A32D2D;margin-top:4px;min-height:16px}
+.backup-box{width:100%;padding:8px 10px;border:0.5px solid #ddd;border-radius:8px;font-size:10px;font-family:monospace;background:#f8f8f8;color:#888;word-break:break-all;line-height:1.5;max-height:110px;overflow-y:auto;user-select:all;cursor:text;margin-bottom:8px}
+.copy-success{font-size:11px;color:#3B6D11;margin-top:4px;min-height:16px}
+.tab-row{display:flex;gap:0;margin-bottom:14px;border-bottom:0.5px solid #eee}
+.tab{font-size:12px;padding:6px 10px;cursor:pointer;color:#999;border-bottom:2px solid transparent;margin-bottom:-1px;transition:.15s;white-space:nowrap}
+.tab.active{color:#1a1a1a;border-bottom-color:#534AB7;font-weight:500}
+.field-label{font-size:11px;color:#666;margin-bottom:4px}
+.slot-pills{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.slot-pill{padding:5px 12px;border-radius:20px;border:0.5px solid #ddd;font-size:12px;cursor:pointer;transition:.15s;background:#f5f5f5;color:#666}
+.slot-pill.sel-m{background:#EAF3DE;color:#27500A;border-color:#C0DD97}
+.slot-pill.sel-a{background:#E6F1FB;color:#0C447C;border-color:#85B7EB}
+.slot-pill.sel-n{background:#FAEEDA;color:#633806;border-color:#FAC775}
+.manual-result{margin-top:10px;padding:8px 10px;border-radius:8px;font-size:12px;line-height:1.6;display:none}
+.manual-result.ok{background:#EAF3DE;color:#27500A}
+.manual-result.err-box{background:#FCEBEB;color:#791F1F}
+/* 預約申請 */
+.req-card{background:#fffbf0;border:1px solid #f0c040;border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+.req-info{flex:1;font-size:12px;line-height:1.6;color:#1a1a1a}
+.req-info strong{color:#4b6cb3}
+.req-actions{display:flex;gap:6px;flex-shrink:0}
+.req-actions button{font-size:11px;padding:4px 10px;border-radius:6px;cursor:pointer;border:0.5px solid #ddd;background:#fff}
+.req-actions .ok{background:#4b6cb3;color:#fff;border-color:#4b6cb3}
+.req-actions .ok:hover{background:#3a5a9b}
+.req-actions .no{color:#E24B4A}
+.req-actions .no:hover{background:#fdecea}
+.req-empty{font-size:12px;color:#bbb;text-align:center;padding:1rem 0}
+/* 學生記錄全頁 */
+.page-records{display:none}
+.page-records.active{display:block}
+.page-schedule{display:block}
+.page-schedule.hidden{display:none}
+.rec-page-content{max-width:720px;margin:0 auto;padding:1.5rem 1rem}
+.rec-page-toolbar{display:flex;gap:8px;margin-bottom:1.25rem;flex-wrap:wrap;align-items:center}
+.rec-search{flex:1;min-width:160px;padding:8px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;background:#fff;outline:none}
+.rec-search:focus{border-color:#4b6cb3}
+.stu-list{display:flex;flex-direction:column;gap:10px}
+.stu-card{background:#fff;border-radius:12px;border:1px solid #e8e8e8;padding:14px 16px;transition:border-color .15s}
+.stu-card:hover{border-color:#c0c8e0}
+.stu-head{display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap}
+.stu-name{font-size:15px;font-weight:600;color:#1a1a1a;flex:1}
+.stu-stats{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.stat-pill{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px}
+.pill-total{background:#EEF2FF;color:#3730a3}
+.pill-used{background:#f0f0f0;color:#555}
+.pill-remain{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600}
+.remain-ok{background:#EAF3DE;color:#27500A}
+.remain-warn{background:#FFF7ED;color:#92400E}
+.remain-zero{background:#fdecea;color:#c62828}
+.stu-hist{font-size:11px;color:#aaa;line-height:1.8;margin-bottom:8px}
+.hist-item{display:inline-flex;align-items:center;gap:4px;margin-right:10px}
+.hist-date{color:#bbb}
+.hist-cnt{background:#EEF2FF;color:#3730a3;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:600}
+.stu-actions{display:flex;gap:6px;flex-wrap:wrap}
+.act-btn{font-size:11px;padding:5px 12px;border-radius:6px;border:1px solid #e0e0e0;background:#f8f8f8;cursor:pointer;color:#555;transition:all .15s}
+.act-btn:hover{background:#eee}
+.act-btn.buy{background:#EEF2FF;color:#3730a3;border-color:#c7d2fe}
+.act-btn.buy:hover{background:#e0e7ff}
+.act-btn.del{color:#E24B4A}
+.act-btn.del:hover{background:#fdecea;border-color:#fca5a5}
+.hist-edit,.hist-del{background:none;border:none;cursor:pointer;font-size:11px;padding:0 2px;opacity:.5;transition:opacity .15s;vertical-align:middle}
+.hist-edit:hover,.hist-del:hover{opacity:1}
+.rec-empty-page{text-align:center;padding:3rem;color:#bbb;font-size:13px;line-height:2}
+/* buy/del modals */
+.modal2-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;z-index:200;backdrop-filter:blur(3px)}
+.modal2{background:#fff;border-radius:14px;padding:22px 20px;width:320px;box-shadow:0 12px 40px rgba(0,0,0,.12)}
+.modal2 h3{font-size:15px;font-weight:700;margin-bottom:5px;color:#1a1a1a}
+.modal2 .msub{font-size:11px;color:#888;margin-bottom:14px}
+.modal2 input{width:100%;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;font-family:inherit;margin-bottom:4px}
+.modal2 input:focus{border-color:#4b6cb3}
+.modal2-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.modal2-btns button{padding:7px 16px;border-radius:8px;font-size:12px;cursor:pointer;border:1px solid #ddd;background:#f5f5f5;color:#444}
+.m2-confirm{background:#4b6cb3!important;color:#fff!important;border-color:#4b6cb3!important}
+.m2-danger{background:#E24B4A!important;color:#fff!important;border-color:#E24B4A!important}
+.merr{font-size:11px;color:#E24B4A;min-height:16px;margin-top:2px}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>毛線森林－劃位表</h1>
+  <div class="sync-badge">
+    <div class="sync-dot loading" id="syncDot"></div>
+    <span id="syncTxt">連線中…</span>
+  </div>
+</div>
+<div class="page-schedule" id="pageSchedule">
+<div class="content">
+<div class="wrap">
+<div class="toolbar">
+  <div class="week-nav">
+    <button class="btn-icon" id="prev" aria-label="上一週">&#8249;</button>
+    <span class="week-label" id="wlabel"></span>
+    <button class="btn-icon" id="next" aria-label="下一週">&#8250;</button>
+  </div>
+  <button class="btn-icon sm" id="toToday">本週</button>
+  <button class="btn-icon accent" id="manualBtn">＋ 新增學生</button>
+  <button class="btn-icon ghost" id="importBtn">匯入</button>
+  <button class="btn-icon ghost" id="backupBtn">備份</button>
+  <button class="btn-icon ghost" onclick="exportWeek()">📄 匯出本週</button>
+  <button class="btn-icon accent" onclick="exportBooking()" style="background:#2e7d52;border-color:#2e7d52">🔗 產生預約頁</button>
+  <button class="btn-icon ghost" onclick="exportViewPage()">📋 產生查看頁</button>
+  <button class="btn-icon accent" onclick="openModal('checkin')" style="background:#b5451b;border-color:#b5451b">📍 打卡頁</button>
+  <button class="btn-icon ghost" onclick="showRecordsPage()">📒 學生記錄</button>
+  <button class="btn-icon ghost" id="reqBtn" onclick="openModal('req')" style="position:relative">
+    📬 預約申請<span class="req-badge" id="reqBadge" style="display:none">0</span>
+  </button>
+</div>
+<div class="avail-bar" id="availBar"></div>
+<div class="grid" id="grid"></div>
+</div>
+</div>
+</div>
+
+<!-- 學生記錄全頁 -->
+<div class="page-records" id="pageRecords">
+  <div class="rec-page-content">
+    <div class="rec-page-toolbar">
+      <button class="btn-icon ghost" onclick="showSchedulePage()" style="font-size:13px">‹ 返回劃位表</button>
+      <input class="rec-search" id="recSearch" placeholder="搜尋學生姓名…" oninput="recFilter()"/>
+      <button class="btn-icon primary" onclick="openRecAddModal()" style="background:#4b6cb3;border-color:#4b6cb3;color:#fff;font-size:12px">＋ 新增學生</button>
+    </div>
+    <div class="stu-list" id="stuList"></div>
+  </div>
+</div>
+
+<!-- 新增學生 modal -->
+<div class="modal2-bg" id="recAddModal" style="display:none">
+  <div class="modal2">
+    <h3>新增學生</h3>
+    <div class="msub">輸入學生姓名建立記錄</div>
+    <input id="recAddName" placeholder="姓名" maxlength="20"/>
+    <div class="merr" id="recAddErr"></div>
+    <div class="modal2-btns">
+      <button onclick="closeModal2('recAddModal')">取消</button>
+      <button class="m2-confirm" onclick="doRecAdd()">新增</button>
+    </div>
+  </div>
+</div>
+
+<!-- 購買堂數 modal -->
+<div class="modal2-bg" id="recBuyModal" style="display:none">
+  <div class="modal2">
+    <h3 id="recBuyTitle">購買堂數</h3>
+    <div class="msub" id="recBuySub"></div>
+    <input id="recBuyCount" type="number" min="1" max="99" placeholder="購買堂數（例如 4）"/>
+    <div class="merr" id="recBuyErr"></div>
+    <div class="modal2-btns">
+      <button onclick="closeModal2('recBuyModal')">取消</button>
+      <button class="m2-confirm" onclick="doRecBuy()">確認購買</button>
+    </div>
+  </div>
+</div>
+
+<!-- 編輯購買記錄 modal -->
+<div class="modal2-bg" id="recEditPurchaseModal" style="display:none">
+  <div class="modal2">
+    <h3>編輯購買記錄</h3>
+    <div class="msub" id="recEditPurchaseSub"></div>
+    <input id="recEditPurchaseCount" type="number" min="1" max="99" placeholder="修改堂數"/>
+    <div class="merr" id="recEditPurchaseErr"></div>
+    <div class="modal2-btns">
+      <button onclick="closeModal2('recEditPurchaseModal')">取消</button>
+      <button class="m2-confirm" onclick="doEditPurchase()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 刪除確認 modal -->
+<div class="modal2-bg" id="recDelModal" style="display:none">
+  <div class="modal2">
+    <h3>刪除學生</h3>
+    <div class="msub" id="recDelSub"></div>
+    <div class="modal2-btns">
+      <button onclick="closeModal2('recDelModal')">取消</button>
+      <button class="m2-danger" onclick="doRecDel()">確認刪除</button>
+    </div>
+  </div>
+</div>
+
+<!-- 點空格新增 -->
+<div class="modal-bg" id="dotAddModal" style="display:none">
+  <div class="modal"><h3 id="dotMtitle"></h3>
+    <input id="dotMinput" placeholder="輸入學生姓名" maxlength="20"/>
+    <div class="modal-btns"><button id="dotMcancel">取消</button><button class="confirm" id="dotMconfirm">新增</button></div>
+  </div>
+</div>
+
+<!-- 編輯姓名 -->
+<div class="modal-bg" id="editModal" style="display:none">
+  <div class="modal">
+    <h3>編輯學生</h3>
+    <div class="edit-sub" id="editSub"></div>
+    <input id="editInput" maxlength="20"/>
+    <div class="modal-btns">
+      <button class="warn-confirm" id="editDelete">取消報名</button>
+      <button id="editClose">關閉</button>
+      <button class="confirm" id="editSave">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 主 modal -->
+<div class="modal-bg" id="mainModal" style="display:none">
+  <div class="modal">
+    <h3 id="mainModalTitle">管理</h3>
+    <div class="tab-row">
+      <div class="tab" id="tab-manual" onclick="switchTab('manual')">新增學生</div>
+      <div class="tab" id="tab-import" onclick="switchTab('import')">匯入排班</div>
+      <div class="tab" id="tab-backup" onclick="switchTab('backup')">備份還原</div>
+      <div class="tab" id="tab-req" onclick="switchTab('req')">預約申請 <span id="tabReqBadge" style="display:none;background:#eb5757;color:#fff;font-size:9px;padding:1px 5px;border-radius:10px;margin-left:3px">0</span></div>
+      <div class="tab" id="tab-checkin" onclick="switchTab('checkin')">打卡頁</div>
+    </div>
+    <div id="mainModalBody"></div>
+    <div class="modal-btns" id="mainModalBtns"></div>
+  </div>
+</div>
+
+<script>
+// ── Firebase 設定 ──────────────────────────────────────────
+const FB_CONFIG={
+  apiKey:"AIzaSyBp_iwZ_g1AllGoaSFVPXYiO-Z8ErFD8S0",
+  authDomain:"maoxian-forest.firebaseapp.com",
+  databaseURL:"https://maoxian-forest-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:"maoxian-forest",
+  storageBucket:"maoxian-forest.firebasestorage.app",
+  messagingSenderId:"752232018965",
+  appId:"1:752232018965:web:a57ddf665f1ed112430a1c"
+};
+
+// ── 課表設定 ──────────────────────────────────────────────
+const DAYS=['日','一','二','三','四','五','六'];
+const SCHEDULE={
+  1:[{key:'m',label:'早上',cls:'bm',time:'10:15–12:15',max:7}],
+  2:[{key:'m',label:'早上',cls:'bm',time:'10:15–12:15',max:4},
+     {key:'a',label:'下午',cls:'ba',time:'15:00–17:00',max:4},
+     {key:'n',label:'晚上',cls:'bn',time:'19:00–21:00',max:7}],
+  5:[{key:'a',label:'下午',cls:'ba',time:'15:00–17:00',max:4}],
+  6:[{key:'m',label:'早上',cls:'bm',time:'10:15–12:15',max:7},
+     {key:'a',label:'下午',cls:'ba',time:'15:00–17:00',max:4}]
+};
+const ALL_SLOTS=[
+  {key:'m',label:'早上',cls:'bm',time:'10:15–12:15'},
+  {key:'a',label:'下午',cls:'ba',time:'15:00–17:00'},
+  {key:'n',label:'晚上',cls:'bn',time:'19:00–21:00'}
+];
+
+let wOff=0,data={},pendingEdit=null,pendingReqs={};
+
+// ── 工具函式 ──────────────────────────────────────────────
+function fd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function parseDate(str){const[y,m,d]=str.split('-').map(Number);return new Date(y,m-1,d);}
+function fmd(d){return(d.getMonth()+1)+'/'+(d.getDate());}
+function getMon(off){const now=new Date(),day=now.getDay();const mon=new Date(now);mon.setDate(now.getDate()-day+(day===0?-6:1)+off*7);mon.setHours(0,0,0,0);return mon;}
+function ck(ds,k){return ds+'_'+k}
+function offKey(ds,k){return ds+'_'+k+'_off'}
+function gs(ds,k){return data[ck(ds,k)]||[]}
+function ss(ds,k,a){data[ck(ds,k)]=a;save()}
+function isOff(ds,k){return!!data[offKey(ds,k)]}
+function setOff(ds,k,v){if(v)data[offKey(ds,k)]=1;else delete data[offKey(ds,k)];save()}
+function slotName(k){return k==='m'?'早上':k==='a'?'下午':'晚上';}
+function slotCls(k){return k==='m'?'bm':k==='a'?'ba':'bn';}
+
+// ── Firebase 同步 ─────────────────────────────────────────
+function setSyncStatus(state,txt){
+  document.getElementById('syncDot').className='sync-dot '+state;
+  document.getElementById('syncTxt').textContent=txt;
+}
+
+let dataRef=null,reqRef=null,db=null;
+try{
+  firebase.initializeApp(FB_CONFIG);
+  db=firebase.database();
+  dataRef=db.ref('knitting/bookings');
+  reqRef=db.ref('knitting/requests');
+}catch(e){
+  setSyncStatus('err','Firebase 錯誤');
+  console.error('Firebase init error:',e);
+}
+
+function save(){
+  if(dataRef)dataRef.set(data).catch(()=>setSyncStatus('err','儲存失敗'));
+  try{localStorage.setItem('knitting_v9',JSON.stringify(data));}catch(e){}
+}
+
+// ── 編輯姓名 modal ────────────────────────────────────────
+function openEditModal(ds,slotKey,i,name,label){
+  pendingEdit={ds,slotKey,i};
+  document.getElementById('editSub').textContent=label;
+  document.getElementById('editInput').value=name;
+  document.getElementById('editModal').style.display='flex';
+  setTimeout(()=>{const inp=document.getElementById('editInput');inp.focus();inp.select();},50);
+}
+document.getElementById('editClose').onclick=()=>{document.getElementById('editModal').style.display='none';pendingEdit=null;};
+document.getElementById('editModal').onclick=e=>{if(e.target===document.getElementById('editModal')){document.getElementById('editModal').style.display='none';pendingEdit=null;}};
+document.getElementById('editInput').onkeydown=e=>{if(e.key==='Enter')document.getElementById('editSave').click();if(e.key==='Escape')document.getElementById('editClose').click();};
+document.getElementById('editSave').onclick=()=>{
+  if(!pendingEdit)return;
+  const newName=document.getElementById('editInput').value.trim();
+  if(!newName)return;
+  const a=gs(pendingEdit.ds,pendingEdit.slotKey);
+  if(a.includes(newName)&&a[pendingEdit.i]!==newName){
+    document.getElementById('editInput').style.borderColor='#E24B4A';
+    setTimeout(()=>document.getElementById('editInput').style.borderColor='',1500);return;
+  }
+  a[pendingEdit.i]=newName;
+  ss(pendingEdit.ds,pendingEdit.slotKey,a);
+  document.getElementById('editModal').style.display='none';pendingEdit=null;render();
+};
+document.getElementById('editDelete').onclick=()=>{
+  if(!pendingEdit)return;
+  const a=gs(pendingEdit.ds,pendingEdit.slotKey);
+  a.splice(pendingEdit.i,1);
+  ss(pendingEdit.ds,pendingEdit.slotKey,a);
+  document.getElementById('editModal').style.display='none';pendingEdit=null;render();
+};
+
+// ── 主 modal 分頁 ─────────────────────────────────────────
+let selectedSlot='m';
+function openModal(tab){
+  const tabs=['manual','import','backup','req','checkin','records'];
+  tabs.forEach(t=>{const el=document.getElementById('tab-'+t);if(el)el.className='tab'+(t===tab?' active':'');});
+  if(tab==='manual')renderManualTab();
+  else if(tab==='import')renderImportTab();
+  else if(tab==='backup')renderBackupTab();
+  else if(tab==='req')renderReqTab();
+  else if(tab==='checkin')renderCheckinTab();
+  else renderRecordsTab();
+  document.getElementById('mainModal').style.display='flex';
+}
+function switchTab(t){openModal(t);}
+
+function renderManualTab(){
+  const today=fd(new Date());
+  document.getElementById('mainModalBody').innerHTML=`
+    <div class="field-label">日期</div>
+    <input type="date" id="manDate" value="${today}" style="margin-bottom:12px"/>
+    <div class="field-label">時段</div>
+    <div class="slot-pills" id="slotPills"></div>
+    <div class="field-label">學生姓名</div>
+    <input id="manName" placeholder="輸入姓名" maxlength="20" style="margin-bottom:4px"/>
+    <div class="manual-result" id="manResult"></div>`;
+  selectedSlot='m';buildSlotPills();
+  document.getElementById('manDate').onchange=()=>buildSlotPills();
+  document.getElementById('mainModalBtns').innerHTML='';
+  const close=document.createElement('button');close.textContent='關閉';close.onclick=()=>{document.getElementById('mainModal').style.display='none';};
+  const add=document.createElement('button');add.className='confirm';add.textContent='＋ 新增';add.onclick=doManualAdd;
+  document.getElementById('mainModalBtns').appendChild(close);document.getElementById('mainModalBtns').appendChild(add);
+  setTimeout(()=>document.getElementById('manName').focus(),50);
+  document.getElementById('manName').onkeydown=e=>{if(e.key==='Enter')doManualAdd();};
+}
+function buildSlotPills(){
+  const dateStr=document.getElementById('manDate').value;if(!dateStr)return;
+  const d=parseDate(dateStr);const dow=d.getDay();const slots=SCHEDULE[dow]||[];
+  const pills=document.getElementById('slotPills');pills.innerHTML='';
+  if(!slots.length){pills.innerHTML='<span style="font-size:12px;color:#bbb">此日不開課</span>';selectedSlot=null;return;}
+  if(!slots.find(s=>s.key===selectedSlot))selectedSlot=slots[0].key;
+  slots.forEach(s=>{const p=document.createElement('div');p.className='slot-pill'+(selectedSlot===s.key?' sel-'+s.key:'');p.textContent=s.label;p.onclick=()=>{selectedSlot=s.key;buildSlotPills();};pills.appendChild(p);});
+}
+function doManualAdd(){
+  const dateStr=document.getElementById('manDate').value;
+  const name=document.getElementById('manName').value.trim();
+  const res=document.getElementById('manResult');res.className='manual-result';res.style.display='none';
+  if(!dateStr){res.className='manual-result err-box';res.textContent='請選擇日期';res.style.display='block';return;}
+  if(!selectedSlot){res.className='manual-result err-box';res.textContent='此日不開課';res.style.display='block';return;}
+  if(!name){res.className='manual-result err-box';res.textContent='請輸入姓名';res.style.display='block';return;}
+  const d=parseDate(dateStr);const dow=d.getDay();
+  const sd=(SCHEDULE[dow]||[]).find(s=>s.key===selectedSlot);
+  if(!sd){res.className='manual-result err-box';res.textContent='此時段不開課';res.style.display='block';return;}
+  const arr=gs(dateStr,selectedSlot);
+  if(arr.length>=sd.max){res.className='manual-result err-box';res.textContent='此時段已額滿';res.style.display='block';return;}
+  if(arr.includes(name)){res.className='manual-result err-box';res.textContent=name+' 已在名單中';res.style.display='block';return;}
+  arr.push(name);ss(dateStr,selectedSlot,arr);
+  res.className='manual-result ok';res.textContent='✓ 已新增 '+name+'（'+fmd(d)+' '+slotName(selectedSlot)+'，'+arr.length+'/'+sd.max+'）';res.style.display='block';
+  document.getElementById('manName').value='';document.getElementById('manName').focus();
+  const mon=getMon(0);const diff=Math.round((d-mon)/(7*86400000));if(diff!==0)wOff+=diff;
+  render();
+}
+
+function renderImportTab(){
+  document.getElementById('mainModalBody').innerHTML=`<p class="hint">把照片傳給 AI 助理，助理辨識後給你匯入碼，貼到下面即可。</p><textarea class="paste-area" id="pasteArea" placeholder='貼上匯入碼（JSON）'></textarea><div class="err" id="pasteErr"></div>`;
+  document.getElementById('mainModalBtns').innerHTML='';
+  const close=document.createElement('button');close.textContent='關閉';close.onclick=()=>{document.getElementById('mainModal').style.display='none';};
+  const ok=document.createElement('button');ok.className='confirm';ok.textContent='匯入';
+  ok.onclick=()=>{
+    const raw=document.getElementById('pasteArea').value.trim();const errEl=document.getElementById('pasteErr');errEl.textContent='';
+    if(!raw){errEl.textContent='請貼上匯入碼';return;}
+    let result;try{result=JSON.parse(raw);}catch(e){errEl.textContent='格式錯誤';return;}
+    if(result._backup){doRestore(result);return;}
+    const slots=result.slots||[];if(!slots.length){errEl.textContent='找不到任何資料';return;}
+    showImportConfirm(slots);
+  };
+  document.getElementById('mainModalBtns').appendChild(close);document.getElementById('mainModalBtns').appendChild(ok);
+  setTimeout(()=>document.getElementById('pasteArea').focus(),50);
+}
+function showImportConfirm(slots){
+  const body=document.getElementById('mainModalBody');body.innerHTML='';
+  const visible=slots.filter(s=>s.students&&s.students.length);
+  if(!visible.length){body.innerHTML='<p style="font-size:12px;color:#888">本週所有時段皆無學生</p>';}
+  else{visible.forEach(s=>{const d=parseDate(s.date);const dow=d.getDay();const row=document.createElement('div');row.className='import-row';row.innerHTML=`<div class="import-row-head"><span class="badge ${slotCls(s.slot)}">${slotName(s.slot)}</span><span style="font-size:12px;font-weight:500;color:#1a1a1a">週${DAYS[dow]} ${fmd(d)}</span></div><div class="import-names">${s.students.join('、')}</div>`;body.appendChild(row);});}
+  document.getElementById('mainModalBtns').innerHTML='';
+  const back=document.createElement('button');back.textContent='← 返回';back.onclick=()=>renderImportTab();
+  const ok=document.createElement('button');ok.className='confirm';ok.textContent='確認匯入';
+  ok.onclick=()=>{slots.forEach(s=>{if(s.date&&s.slot&&s.students)ss(s.date,s.slot,s.students);});document.getElementById('mainModal').style.display='none';if(slots.length){const fd0=parseDate(slots[0].date);const mon=getMon(0);const diff=Math.round((fd0-mon)/(7*86400000));wOff+=diff;}render();};
+  document.getElementById('mainModalBtns').appendChild(back);document.getElementById('mainModalBtns').appendChild(ok);
+}
+function renderBackupTab(){
+  const backupObj={_backup:true,_date:fd(new Date()),data:data};const backupStr=JSON.stringify(backupObj);const keyCount=Object.keys(data).length;
+  document.getElementById('mainModalBody').innerHTML=`<p style="font-size:12px;color:#888;margin-bottom:10px">目前共 <strong style="color:#1a1a1a">${keyCount}</strong> 筆資料。複製備份碼存到記事本或 LINE，換裝置時貼入「匯入」即可還原。</p><div class="backup-box" id="backupBox" onclick="selectBackup()">${backupStr}</div><div class="copy-success" id="copyMsg"></div>`;
+  document.getElementById('mainModalBtns').innerHTML='';
+  const close=document.createElement('button');close.textContent='關閉';close.onclick=()=>{document.getElementById('mainModal').style.display='none';};
+  const copyBtn=document.createElement('button');copyBtn.className='confirm';copyBtn.textContent='複製備份碼';
+  copyBtn.onclick=()=>{navigator.clipboard.writeText(backupStr).then(()=>{document.getElementById('copyMsg').textContent='✓ 已複製！請貼到記事本或 LINE 存好';}).catch(()=>{selectBackup();document.getElementById('copyMsg').textContent='請手動全選再複製';});};
+  document.getElementById('mainModalBtns').appendChild(close);document.getElementById('mainModalBtns').appendChild(copyBtn);
+}
+function selectBackup(){const box=document.getElementById('backupBox');if(!box)return;const r=document.createRange();r.selectNodeContents(box);const s=window.getSelection();s.removeAllRanges();s.addRange(r);}
+function doRestore(backupObj){
+  const count=Object.keys(backupObj.data||{}).length;
+  document.getElementById('mainModalBody').innerHTML=`<p style="font-size:12px;color:#888;line-height:1.6">備份日期：<strong>${backupObj._date||'未知'}</strong><br>資料筆數：<strong>${count}</strong> 筆<br><br>還原後<strong style="color:#A32D2D">目前資料將被覆蓋</strong>，確定繼續嗎？</p>`;
+  document.getElementById('mainModalBtns').innerHTML='';
+  const back=document.createElement('button');back.textContent='取消';back.onclick=()=>renderImportTab();
+  const ok=document.createElement('button');ok.className='confirm';ok.textContent='確認還原';
+  ok.onclick=()=>{data=backupObj.data||{};save();document.getElementById('mainModal').style.display='none';render();};
+  document.getElementById('mainModalBtns').appendChild(back);document.getElementById('mainModalBtns').appendChild(ok);
+}
+
+// ── 預約申請 ──────────────────────────────────────────────
+function renderReqTab(){
+  const body=document.getElementById('mainModalBody');
+  const entries=Object.entries(pendingReqs);
+  if(!entries.length){body.innerHTML='<div class="req-empty">目前沒有待處理的預約申請</div>';}
+  else{
+    body.innerHTML='';
+    entries.forEach(([key,req])=>{
+      const card=document.createElement('div');card.className='req-card';
+      const d=parseDate(req.date);const dow=d.getDay();
+      const slotLabel=slotName(req.slotKey);
+      const slotCls2=slotCls(req.slotKey);
+      card.innerHTML=`<div class="req-info"><strong>${req.name}</strong><br><span class="badge ${slotCls2}">${slotLabel}</span> 週${DAYS[dow]} ${fmd(d)}（${req.time}）</div>`;
+      const btns=document.createElement('div');btns.className='req-actions';
+      const okBtn=document.createElement('button');okBtn.className='ok';okBtn.textContent='確認';
+      okBtn.onclick=()=>{
+        reqRef.child(key).update({status:'accepted'});
+        renderReqTab();
+      };
+      const noBtn=document.createElement('button');noBtn.className='no';noBtn.textContent='退回';
+      noBtn.onclick=()=>{
+        const arr=gs(req.date,req.slotKey).filter(n=>n!==req.name);
+        ss(req.date,req.slotKey,arr);
+        reqRef.child(key).update({status:'rejected'});
+        renderReqTab();render();
+      };
+      btns.appendChild(okBtn);btns.appendChild(noBtn);card.appendChild(btns);
+      body.appendChild(card);
+    });
+  }
+  document.getElementById('mainModalBtns').innerHTML='';
+  const close=document.createElement('button');close.textContent='關閉';close.onclick=()=>{document.getElementById('mainModal').style.display='none';};
+  document.getElementById('mainModalBtns').appendChild(close);
+}
+
+document.getElementById('manualBtn').onclick=()=>openModal('manual');
+document.getElementById('importBtn').onclick=()=>openModal('import');
+document.getElementById('backupBtn').onclick=()=>openModal('backup');
+
+// ── 主排班表 render ───────────────────────────────────────
+function render(){
+  const mon=getMon(wOff);
+  const dates=Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return d;});
+  const sun=new Date(mon);sun.setDate(mon.getDate()+6);
+  document.getElementById('wlabel').textContent=fmd(mon)+' – '+fmd(sun);
+  const bar=document.getElementById('availBar');bar.innerHTML='';
+  ALL_SLOTS.forEach(slot=>{let tot=0,bk=0;dates.forEach(d=>{const dow=d.getDay(),ds=fd(d);const sd=(SCHEDULE[dow]||[]).find(s=>s.key===slot.key);if(sd&&!isOff(ds,slot.key)){tot+=sd.max;bk+=gs(ds,slot.key).length;}});if(!tot)return;const p=document.createElement('div');p.className='avail-pill';p.innerHTML=`<span class="badge ${slot.cls}">${slot.label}</span> 空位 <strong>${tot-bk}</strong>/<span style="color:#bbb">${tot}</span>`;bar.appendChild(p);});
+  const activeKeys=new Set();dates.forEach(d=>{(SCHEDULE[d.getDay()]||[]).forEach(s=>activeKeys.add(s.key));});
+  const activeSlots=ALL_SLOTS.filter(s=>activeKeys.has(s.key));
+  const grid=document.getElementById('grid');grid.style.gridTemplateColumns='64px repeat(7,1fr)';grid.innerHTML='';
+  const todayStr=fd(new Date());
+  const today=new Date();today.setHours(0,0,0,0);
+  grid.appendChild(document.createElement('div'));
+  dates.forEach(d=>{const dow=d.getDay();const isPastDay=d<today;const h=document.createElement('div');h.className='col-head'+(fd(d)===todayStr?' today':'')+(!(SCHEDULE[dow]||[]).length?' closed':'')+(isPastDay?' past-head':'');h.innerHTML=`週${DAYS[dow]}<br>${fmd(d)}`;grid.appendChild(h);});
+  activeSlots.forEach(slot=>{
+    const rl=document.createElement('div');rl.className='row-label';rl.innerHTML=`<span class="badge ${slot.cls}">${slot.label}</span><span class="row-time">${slot.time}</span>`;grid.appendChild(rl);
+    dates.forEach(d=>{
+      const dow=d.getDay(),ds=fd(d);
+      const isPast=d<today;
+      const sd=(SCHEDULE[dow]||[]).find(s=>s.key===slot.key);const cell=document.createElement('div');
+      if(!sd){cell.className='cell sched-closed';cell.innerHTML='<span class="closed-dash">—</span>';grid.appendChild(cell);return;}
+      if(isOff(ds,slot.key)){
+        cell.className='cell manual-off';
+        const tog=document.createElement('div');tog.className='slot-toggle';
+        const track=document.createElement('div');track.className='toggle-track off';
+        const knob=document.createElement('div');knob.className='toggle-knob';
+        const lbl=document.createElement('span');lbl.className='toggle-label';lbl.textContent='停課';
+        track.appendChild(knob);tog.appendChild(track);tog.appendChild(lbl);
+        if(!isPast)tog.onclick=()=>{setOff(ds,slot.key,false);render();};
+        else tog.style.pointerEvents='none';
+        cell.appendChild(tog);grid.appendChild(cell);return;
+      }
+      const students=gs(ds,slot.key);const full=students.length>=sd.max;
+      cell.className='cell'+(full?' full':'')+(isPast?' past':'');
+      if(!isPast){
+        const tog=document.createElement('div');tog.className='slot-toggle';
+        const track=document.createElement('div');track.className='toggle-track';
+        const knob=document.createElement('div');knob.className='toggle-knob';
+        const lbl=document.createElement('span');lbl.className='toggle-label';lbl.textContent='開課';
+        track.appendChild(knob);tog.appendChild(track);tog.appendChild(lbl);
+        tog.onclick=e=>{e.stopPropagation();setOff(ds,slot.key,true);render();};
+        cell.appendChild(tog);
+      }
+      students.forEach((name,i)=>{
+        const chip=document.createElement('div');chip.className='name-chip';
+        const nm=document.createElement('span');nm.className='nm';nm.textContent=name;nm.title=name;
+        chip.appendChild(nm);
+        if(!isPast){
+          const ei=document.createElement('span');ei.className='edit-icon';ei.innerHTML='<i class="ti ti-pencil" style="font-size:9px"></i>';
+          chip.appendChild(ei);
+          const label='週'+DAYS[dow]+' '+fmd(d)+' '+slot.label;
+          chip.onclick=()=>openEditModal(ds,slot.key,i,name,label);
+        } else {
+          chip.style.cursor='default';
+        }
+        cell.appendChild(chip);
+      });
+      if(!isPast&&!full){
+        const empty=document.createElement('div');empty.className='empty-slot';
+        empty.innerHTML='<span class="plus">＋</span>';
+        empty.onclick=()=>{
+          document.getElementById('dotMtitle').textContent='週'+DAYS[dow]+' '+fmd(d)+' '+slot.label;
+          document.getElementById('dotMinput').value='';
+          document.getElementById('dotAddModal').style.display='flex';
+          setTimeout(()=>document.getElementById('dotMinput').focus(),50);
+          document.getElementById('dotMconfirm').onclick=()=>{
+            const n=document.getElementById('dotMinput').value.trim();if(!n)return;
+            const a=gs(ds,slot.key);if(a.length>=sd.max||a.includes(n))return;
+            a.push(n);ss(ds,slot.key,a);document.getElementById('dotAddModal').style.display='none';render();
+          };
+        };
+        cell.appendChild(empty);
+      }
+      const footer=document.createElement('div');footer.className='seat-footer';
+      const attCount=Object.keys(data['att_'+ds+'_'+slot.key]||{}).length;
+      footer.textContent=students.length+'/'+sd.max+(attCount?' · ✅'+attCount:'');
+      cell.appendChild(footer);
+      grid.appendChild(cell);
+    });
+  });
+}
+document.getElementById('prev').onclick=()=>{wOff--;render()};
+document.getElementById('next').onclick=()=>{wOff++;render()};
+document.getElementById('toToday').onclick=()=>{wOff=0;render()};
+document.getElementById('dotMcancel').onclick=()=>{
+  document.getElementById('dotAddModal').style.display='none';
+  document.getElementById('dotMinput').type='text';
+  document.getElementById('dotMinput').placeholder='輸入學生姓名';
+};
+document.getElementById('dotAddModal').onclick=e=>{if(e.target===document.getElementById('dotAddModal'))document.getElementById('dotAddModal').style.display='none';};
+document.getElementById('dotMinput').onkeydown=e=>{if(e.key==='Enter')document.getElementById('dotMconfirm').click()};
+
+// ── 學生堂數記錄 ─────────────────────────────────────────
+// Firebase: knitting/students/{name_key} = { name, purchases:[{date,count}] }
+// 已上堂數從 attendance 節點自動統計
+
+let studentsData={};   // { key: {name, purchases:[{date,count}]} }
+let attendanceData={}; // { "date_slot": {name_key:{name,time}} }
+
+function nameToKey(n){return n.replace(/[.#$[\]/]/g,'_');}
+
+function getAttendedCount(name){
+  let cnt=0;
+  const key=nameToKey(name);
+  Object.values(attendanceData).forEach(session=>{
+    if(session&&session[key])cnt++;
+  });
+  return cnt;
+}
+
+function getTotalPurchased(student){
+  return (student.purchases||[]).reduce((s,p)=>s+p.count,0);
+}
+
+function renderRecordsTab(){
+  const body=document.getElementById('mainModalBody');
+  const students=Object.values(studentsData).sort((a,b)=>a.name.localeCompare(b.name,'zh-Hant'));
+
+  body.innerHTML=`
+    <div class="rec-toolbar">
+      <input id="recSearch" placeholder="搜尋學生姓名…" oninput="filterRecords()"/>
+      <button class="rec-btn primary" onclick="showAddStudentRow()">＋ 新增學生</button>
+    </div>
+    <div id="recAddRow" class="rec-add-row">
+      <div class="field-label">學生姓名</div>
+      <div class="rec-add-inputs">
+        <input id="recNewName" placeholder="姓名" maxlength="20"/>
+        <button class="rec-btn primary" onclick="doAddStudent()">新增</button>
+        <button class="rec-btn" onclick="hideAddStudentRow()">取消</button>
+      </div>
+    </div>
+    <div id="recList"></div>`;
+
+  renderRecordList(students);
+  document.getElementById('mainModalBtns').innerHTML='';
+  const close=document.createElement('button');close.textContent='關閉';
+  close.onclick=()=>{document.getElementById('mainModal').style.display='none';};
+  document.getElementById('mainModalBtns').appendChild(close);
+}
+
+function renderRecordList(students){
+  const el=document.getElementById('recList');if(!el)return;
+  if(!students.length){el.innerHTML='<div class="rec-empty">還沒有學生記錄</div>';return;}
+  let html='<table class="rec-table"><thead><tr><th>學生</th><th>購買</th><th>已上</th><th>剩餘</th><th></th></tr></thead><tbody>';
+  students.forEach(stu=>{
+    const purchased=getTotalPurchased(stu);
+    const attended=getAttendedCount(stu.name);
+    const remaining=purchased-attended;
+    const tagCls=remaining<=0?'rec-zero':remaining<=2?'rec-warn':'rec-ok';
+    const hist=(stu.purchases||[]).map(p=>`${p.date} +${p.count}堂`).join(' · ');
+    const key=nameToKey(stu.name);
+    html+=`<tr>
+      <td><div class="rec-name">${stu.name}</div>${hist?`<div class="rec-hist">${hist}</div>`:''}</td>
+      <td>${purchased}</td>
+      <td>${attended}</td>
+      <td><span class="rec-tag ${tagCls}">${remaining}</span></td>
+      <td><button class="rec-btn" style="font-size:10px;padding:3px 8px" onclick="showBuyModal('${key}')">＋ 購買</button></td>
+    </tr>`;
+  });
+  html+='</tbody></table>';
+  el.innerHTML=html;
+}
+
+function filterRecords(){
+  const q=document.getElementById('recSearch').value.trim().toLowerCase();
+  const students=Object.values(studentsData).filter(s=>!q||s.name.toLowerCase().includes(q))
+    .sort((a,b)=>a.name.localeCompare(b.name,'zh-Hant'));
+  renderRecordList(students);
+}
+
+function showAddStudentRow(){
+  const row=document.getElementById('recAddRow');
+  row.style.display='block';
+  setTimeout(()=>{row.scrollIntoView({behavior:'smooth',block:'nearest'});document.getElementById('recNewName').focus();},50);
+}
+function hideAddStudentRow(){document.getElementById('recAddRow').style.display='none';}
+
+function doAddStudent(){
+  const name=document.getElementById('recNewName').value.trim();
+  if(!name)return;
+  const key=nameToKey(name);
+  if(studentsData[key]){alert('學生已存在');return;}
+  const stu={name,purchases:[]};
+  studentsData[key]=stu;
+  if(db)db.ref('knitting/students/'+key).set(stu);
+  document.getElementById('recNewName').value='';
+  hideAddStudentRow();
+  renderRecordsTab();
+}
+
+// 購買堂數 modal（利用現有 dotAddModal 稍作借用）
+let buyingKey=null;
+function showBuyModal(key){
+  buyingKey=key;
+  const stu=studentsData[key];if(!stu)return;
+  document.getElementById('dotMtitle').textContent='購買堂數　－　'+stu.name;
+  document.getElementById('dotMinput').value='';
+  document.getElementById('dotMinput').placeholder='購買堂數（例如 4）';
+  document.getElementById('dotMinput').type='number';
+  document.getElementById('dotMinput').min='1';
+  document.getElementById('dotAddModal').style.display='flex';
+  setTimeout(()=>document.getElementById('dotMinput').focus(),50);
+  document.getElementById('dotMconfirm').onclick=()=>{
+    const n=parseInt(document.getElementById('dotMinput').value);
+    if(!n||n<1)return;
+    const purchase={date:fd(new Date()),count:n};
+    const stu=studentsData[buyingKey];
+    if(!stu.purchases)stu.purchases=[];
+    stu.purchases.push(purchase);
+    if(db)db.ref('knitting/students/'+buyingKey).set(stu);
+    document.getElementById('dotAddModal').style.display='none';
+    document.getElementById('dotMinput').type='text';
+    document.getElementById('dotMinput').placeholder='輸入學生姓名';
+    renderRecordsTab();
+  };
+}
+
+// ── 打卡頁 ────────────────────────────────────────────────
+function renderCheckinTab(){
+  const today=fd(new Date());
+  document.getElementById('mainModalBody').innerHTML=`
+    <div class="field-label">選擇日期</div>
+    <input type="date" id="ciDate" value="${today}" style="margin-bottom:12px"/>
+    <div class="field-label">選擇時段</div>
+    <div class="slot-pills" id="ciPills" style="margin-bottom:12px"></div>
+    <div id="ciStudents" style="font-size:12px;color:#888;min-height:32px"></div>`;
+  buildCiPills();
+  document.getElementById('ciDate').onchange=buildCiPills;
+  document.getElementById('mainModalBtns').innerHTML='';
+  const close=document.createElement('button');close.textContent='關閉';close.onclick=()=>{document.getElementById('mainModal').style.display='none';};
+  const gen=document.createElement('button');gen.className='confirm';gen.textContent='📍 產生打卡頁';
+  gen.style.cssText='background:#b5451b!important;border-color:#b5451b!important';
+  gen.onclick=()=>{
+    const dateStr=document.getElementById('ciDate').value;
+    if(!ciSelectedSlot||!dateStr){return;}
+    exportCheckIn(dateStr,ciSelectedSlot);
+  };
+  document.getElementById('mainModalBtns').appendChild(close);
+  document.getElementById('mainModalBtns').appendChild(gen);
+}
+let ciSelectedSlot=null;
+function buildCiPills(){
+  const dateStr=document.getElementById('ciDate').value;if(!dateStr)return;
+  const d=parseDate(dateStr),dow=d.getDay(),slots=SCHEDULE[dow]||[];
+  const pills=document.getElementById('ciPills');pills.innerHTML='';
+  if(!slots.length){pills.innerHTML='<span style="font-size:12px;color:#bbb">此日不開課</span>';ciSelectedSlot=null;updateCiStudents(dateStr,null);return;}
+  if(!slots.find(s=>s.key===ciSelectedSlot))ciSelectedSlot=slots[0].key;
+  slots.forEach(s=>{
+    const p=document.createElement('div');
+    p.className='slot-pill'+(ciSelectedSlot===s.key?' sel-'+s.key:'');
+    p.textContent=s.label;
+    p.onclick=()=>{ciSelectedSlot=s.key;buildCiPills();};
+    pills.appendChild(p);
+  });
+  updateCiStudents(dateStr,ciSelectedSlot);
+}
+function updateCiStudents(dateStr,slotKey){
+  const el=document.getElementById('ciStudents');if(!el)return;
+  if(!slotKey){el.textContent='';return;}
+  const stus=gs(dateStr,slotKey);
+  el.textContent=stus.length?'名單：'+stus.join('、'):'此時段目前沒有學生';
+}
+
+function exportCheckIn(dateStr,slotKey){
+  const d=parseDate(dateStr),dow=d.getDay();
+  const sd=(SCHEDULE[dow]||[]).find(s=>s.key===slotKey);if(!sd)return;
+  const students=gs(dateStr,slotKey);
+  const sessionLabel=fmd(d)+' 週'+DAYS[dow]+' '+sd.label;
+  const fbCfgStr='{"apiKey":"AIzaSyBp_iwZ_g1AllGoaSFVPXYiO-Z8ErFD8S0","authDomain":"maoxian-forest.firebaseapp.com","databaseURL":"https://maoxian-forest-default-rtdb.asia-southeast1.firebasedatabase.app","projectId":"maoxian-forest","storageBucket":"maoxian-forest.firebasestorage.app","messagingSenderId":"752232018965","appId":"1:752232018965:web:a57ddf665f1ed112430a1c"}';
+  const attendanceKey='knitting/attendance/'+dateStr+'_'+slotKey;
+
+  const css='*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,"Helvetica Neue",Arial,sans-serif;background:#f4f6fb;min-height:100vh}'
+    +'.header{background:#b5451b;padding:1rem 1.5rem;text-align:center}'
+    +'h1{color:#fff;font-size:17px;font-weight:700}'
+    +'.sub{color:rgba(255,255,255,.8);font-size:12px;margin-top:4px}'
+    +'.content{max-width:480px;margin:0 auto;padding:1.5rem 1rem}'
+    +'.instr{font-size:12px;color:#888;text-align:center;margin-bottom:1.25rem;line-height:1.6}'
+    +'.names{display:flex;flex-direction:column;gap:10px}'
+    +'.card{background:#fff;border-radius:12px;border:2px solid #e8e8e8;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:all .15s;font-size:15px;font-weight:500;color:#1a1a1a}'
+    +'.card:hover{border-color:#b5451b;background:#fff8f5}'
+    +'.card.checked{border-color:#2e7d52;background:#eaf5ea;cursor:default}'
+    +'.card.checked .name{color:#2e7d52}'
+    +'.check-icon{font-size:22px;opacity:0;transition:opacity .2s}'
+    +'.card.checked .check-icon{opacity:1}'
+    +'.empty{text-align:center;font-size:13px;color:#aaa;padding:3rem 0}'
+    +'.summary{text-align:center;font-size:12px;color:#888;margin-top:1.25rem}'
+    +'.summary strong{color:#2e7d52}'
+    +'.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:99;padding:1rem;backdrop-filter:blur(4px)}'
+    +'.modal{background:#fff;border-radius:18px;padding:28px 24px;width:100%;max-width:320px;text-align:center;box-shadow:0 16px 48px rgba(0,0,0,.15)}'
+    +'.modal-emoji{font-size:40px;margin-bottom:10px}'
+    +'.modal-title{font-size:18px;font-weight:700;color:#1a1a1a;margin-bottom:6px}'
+    +'.modal-sub{font-size:13px;color:#888;margin-bottom:22px;line-height:1.5}'
+    +'.modal-btns{display:flex;gap:10px}'
+    +'.modal-btns button{flex:1;padding:12px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all .15s}'
+    +'.btn-cancel{background:#f0f0f0;color:#666}'
+    +'.btn-cancel:hover{background:#e0e0e0}'
+    +'.btn-confirm{background:#b5451b;color:#fff}'
+    +'.btn-confirm:hover{background:#8f3515}';
+
+  const js=
+    'var FB='+fbCfgStr+';\n'+
+    'var ATT_KEY="'+attendanceKey+'";\n'+
+    'var STUDENTS='+JSON.stringify(students)+';\n'+
+    'var attendance={},pendingName=null;\n'+
+    'function render(){\n'+
+    '  var el=document.getElementById("names");\n'+
+    '  if(!STUDENTS.length){el.innerHTML="<div class=\'empty\'>此時段目前沒有學生</div>";return;}\n'+
+    '  el.innerHTML="";\n'+
+    '  var cnt=0;\n'+
+    '  STUDENTS.forEach(function(name){\n'+
+    '    var checked=!!attendance[name.replace(/[.#$\\[\\]]/g,"_")];\n'+
+    '    if(checked)cnt++;\n'+
+    '    var card=document.createElement("div");card.className="card"+(checked?" checked":"");\n'+
+    '    card.innerHTML="<span class=\'name\'>"+name+"</span><span class=\'check-icon\'>✅</span>";\n'+
+    '    if(!checked){card.onclick=(function(n){return function(){openConfirm(n);};})(name);}\n'+
+    '    el.appendChild(card);\n'+
+    '  });\n'+
+    '  document.getElementById("summary").innerHTML="已打卡 <strong>"+cnt+"</strong> / "+STUDENTS.length+" 人";\n'+
+    '}\n'+
+    'function openConfirm(name){\n'+
+    '  pendingName=name;\n'+
+    '  document.getElementById("confirmName").textContent=name;\n'+
+    '  document.getElementById("confirmModal").style.display="flex";\n'+
+    '}\n'+
+    'function closeConfirm(){document.getElementById("confirmModal").style.display="none";pendingName=null;}\n'+
+    'function doCheckIn(){\n'+
+    '  if(!pendingName)return;\n'+
+    '  var key=pendingName.replace(/[.#$\\[\\]]/g,"_");\n'+
+    '  firebase.database().ref(ATT_KEY+"/"+key).set({name:pendingName,time:Date.now()});\n'+
+    '  closeConfirm();\n'+
+    '}\n'+
+    'firebase.initializeApp(FB);\n'+
+    'firebase.database().ref(ATT_KEY).on("value",function(snap){\n'+
+    '  attendance=snap.val()||{};\n'+
+    '  render();\n'+
+    '});\n'+
+    'render();\n';
+
+  var html='<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>毛線森林－打卡</title>'
+    +'<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"><\/script>'
+    +'<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"><\/script>'
+    +'<style>'+css+'<\/style><\/head><body>'
+    +'<div class="header"><h1>毛線森林－打卡</h1><div class="sub">'+sessionLabel+' · '+sd.time+'</div></div>'
+    +'<div class="content">'
+    +'<p class="instr">請找到你的名字，點一下進行打卡</p>'
+    +'<div class="names" id="names"></div>'
+    +'<div class="summary" id="summary"></div>'
+    +'</div>'
+    +'<div class="modal-bg" id="confirmModal" style="display:none">'
+    +'<div class="modal">'
+    +'<div class="modal-emoji">👋</div>'
+    +'<div class="modal-title" id="confirmName"></div>'
+    +'<div class="modal-sub">確定是你嗎？確認後將完成打卡，無法取消。</div>'
+    +'<div class="modal-btns">'
+    +'<button class="btn-cancel" onclick="closeConfirm()">不是我</button>'
+    +'<button class="btn-confirm" onclick="doCheckIn()">確認打卡</button>'
+    +'</div>'
+    +'</div>'
+    +'</div>'
+    +'<script>'+js+'<\/script>'
+    +'</body></html>';
+
+  var blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='毛線森林_打卡_'+dateStr+'_'+slotKey+'.html';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  document.getElementById('mainModal').style.display='none';
+}
+
+// ── 產生查看頁 ────────────────────────────────────────────
+function exportViewPage(){
+  const fbCfgStr='{"apiKey":"AIzaSyBp_iwZ_g1AllGoaSFVPXYiO-Z8ErFD8S0","authDomain":"maoxian-forest.firebaseapp.com","databaseURL":"https://maoxian-forest-default-rtdb.asia-southeast1.firebasedatabase.app","projectId":"maoxian-forest","storageBucket":"maoxian-forest.firebasestorage.app","messagingSenderId":"752232018965","appId":"1:752232018965:web:a57ddf665f1ed112430a1c"}';
+  const scheduleStr=JSON.stringify(SCHEDULE);
+
+  var css='*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,"Helvetica Neue",Arial,sans-serif;background:#f7f7f9;color:#1a1a1a;min-height:100vh}.header{background:#4b6cb3;padding:.9rem 1.5rem;text-align:center;position:relative}h1{color:#fff;font-size:17px;font-weight:700}.sync{position:absolute;right:1rem;top:50%;transform:translateY(-50%);font-size:11px;color:rgba(255,255,255,.8);display:flex;align-items:center;gap:5px}.dot{width:7px;height:7px;border-radius:50%;background:#f2c94c}.dot.ok{background:#6fcf97}.dot.err{background:#eb5757}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}.dot.loading{animation:pulse 1s infinite}.content{max-width:900px;margin:0 auto;padding:1.25rem 1rem}.nav{display:flex;align-items:center;gap:8px;margin-bottom:1rem}.nav-btn{background:#fff;border:0.5px solid #ddd;border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;color:#444}.nav-btn:hover{background:#f0f0f0}.week-lbl{font-size:14px;font-weight:500;min-width:155px;text-align:center}.print-btn{background:#fff;border:0.5px solid #ddd;border-radius:8px;height:32px;padding:0 12px;cursor:pointer;font-size:12px;color:#555;display:flex;align-items:center;gap:5px}.print-btn:hover{background:#f0f0f0}.avail-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem}.pill{font-size:11px;padding:3px 9px;border-radius:20px;border:0.5px solid #e0e0e0;color:#666;display:flex;align-items:center;gap:5px;background:#fff}.pill strong{color:#1a1a1a}.badge{display:inline-block;font-size:10px;font-weight:500;padding:1px 7px;border-radius:20px;line-height:1.6}.bm{background:#EAF3DE;color:#27500A}.ba{background:#E6F1FB;color:#0C447C}.bn{background:#FAEEDA;color:#633806}.grid{display:grid;gap:5px}.col-head{font-size:11px;font-weight:500;color:#888;text-align:center;padding:5px 3px;border-radius:8px;line-height:1.4}.col-head.today{background:#EEEDFE;color:#3C3489}.col-head.no-class{opacity:.3}.row-lbl{display:flex;flex-direction:column;gap:2px;justify-content:center;align-items:flex-end;padding-right:6px}.row-time{font-size:9px;color:#bbb;white-space:nowrap}.cell{background:#fff;border:0.5px solid #e8e8e8;border-radius:8px;padding:6px 7px;min-height:52px;display:flex;flex-direction:column;gap:3px}.cell.off{background:#f8f8f8;border-style:dashed;border-color:#e0e0e0;align-items:center;justify-content:center}.cell.no-class{background:#f5f5f5;border-color:transparent;align-items:center;justify-content:center}.cell.full{border-color:#F7C1C1}.off-lbl{font-size:10px;color:#bbb}.chip{font-size:10px;padding:3px 8px;background:#FCEBEB;border:0.5px solid #F7C1C1;border-radius:4px;color:#791F1F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.footer{font-size:9px;color:#bbb;text-align:right;margin-top:auto}.cell.full .footer{color:#A32D2D}.dash{font-size:11px;color:#ccc}'
+    +'@media print{'
+    +'body{background:#fff}'
+    +'.header{background:#4b6cb3!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:.6rem 1rem}'
+    +'.sync,.nav{display:none!important}'
+    +'.content{padding:.5rem}'
+    +'.avail-bar{margin-bottom:.5rem}'
+    +'.badge{-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    +'.bm{background:#EAF3DE!important;color:#27500A!important}'
+    +'.ba{background:#E6F1FB!important;color:#0C447C!important}'
+    +'.bn{background:#FAEEDA!important;color:#633806!important}'
+    +'.chip{background:#FCEBEB!important;border-color:#F7C1C1!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    +'.col-head.today{background:#EEEDFE!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    +'.cell{min-height:36px;border:0.5px solid #ccc!important}'
+    +'.grid{gap:3px}'
+    +'}';
+
+  const js=
+    'var FB='+fbCfgStr+';\n'+
+    'var SCH='+scheduleStr+';\n'+
+    'var DAYS=["日","一","二","三","四","五","六"];\n'+
+    'var ALL=[{key:"m",label:"早上",cls:"bm",time:"10:15–12:15"},{key:"a",label:"下午",cls:"ba",time:"15:00–17:00"},{key:"n",label:"晚上",cls:"bn",time:"19:00–21:00"}];\n'+
+    'var bk={},wOff=0;\n'+
+    'function fd(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}\n'+
+    'function fmd(d){return(d.getMonth()+1)+"/"+(d.getDate());}\n'+
+    'function getMon(off){var now=new Date(),day=now.getDay(),m=new Date(now);m.setDate(now.getDate()-day+(day===0?-6:1)+off*7);m.setHours(0,0,0,0);return m;}\n'+
+    'function gs(ds,k){return bk[ds+"_"+k]||[];}\n'+
+    'function isOff(ds,k){return!!bk[ds+"_"+k+"_off"];}\n'+
+    'function render(){\n'+
+    '  var mon=getMon(wOff),dates=[];\n'+
+    '  for(var i=0;i<7;i++){var d=new Date(mon);d.setDate(mon.getDate()+i);dates.push(d);}\n'+
+    '  var sun=new Date(mon);sun.setDate(mon.getDate()+6);\n'+
+    '  document.getElementById("wlbl").textContent=fmd(mon)+" – "+fmd(sun);\n'+
+    '  var bar=document.getElementById("bar");bar.innerHTML="";\n'+
+    '  ALL.forEach(function(sl){\n'+
+    '    var tot=0,used=0;\n'+
+    '    dates.forEach(function(d){var dow=d.getDay(),ds=fd(d),sd=(SCH[dow]||[]).find(function(s){return s.key===sl.key;});if(sd&&!isOff(ds,sl.key)){tot+=sd.max;used+=gs(ds,sl.key).length;}});\n'+
+    '    if(!tot)return;\n'+
+    '    var p=document.createElement("div");p.className="pill";\n'+
+    '    p.innerHTML="<span class=\'badge "+sl.cls+"\'>"+sl.label+"</span> 空位 <strong>"+(tot-used)+"</strong>/<span style=\'color:#bbb\'>"+tot+"</span>";\n'+
+    '    bar.appendChild(p);\n'+
+    '  });\n'+
+    '  var activeKeys=new Set();\n'+
+    '  dates.forEach(function(d){(SCH[d.getDay()]||[]).forEach(function(s){activeKeys.add(s.key);});});\n'+
+    '  var activeSlots=ALL.filter(function(s){return activeKeys.has(s.key);});\n'+
+    '  var grid=document.getElementById("grid");grid.innerHTML="";\n'+
+    '  grid.style.gridTemplateColumns="64px repeat(7,1fr)";\n'+
+    '  var todayStr=fd(new Date());\n'+
+    '  grid.appendChild(document.createElement("div"));\n'+
+    '  dates.forEach(function(d){\n'+
+    '    var dow=d.getDay(),h=document.createElement("div");\n'+
+    '    h.className="col-head"+(fd(d)===todayStr?" today":"")+(!(SCH[dow]||[]).length?" no-class":"");\n'+
+    '    h.innerHTML="週"+DAYS[dow]+"<br><span style=\'font-size:10px;opacity:.7\'>"+fmd(d)+"</span>";\n'+
+    '    grid.appendChild(h);\n'+
+    '  });\n'+
+    '  activeSlots.forEach(function(sl){\n'+
+    '    var rl=document.createElement("div");rl.className="row-lbl";\n'+
+    '    rl.innerHTML="<span class=\'badge "+sl.cls+"\'>"+sl.label+"</span><span class=\'row-time\'>"+sl.time+"</span>";\n'+
+    '    grid.appendChild(rl);\n'+
+    '    dates.forEach(function(d){\n'+
+    '      var dow=d.getDay(),ds=fd(d),cell=document.createElement("div");\n'+
+    '      var sd=(SCH[dow]||[]).find(function(s){return s.key===sl.key;});\n'+
+    '      if(!sd){cell.className="cell no-class";cell.innerHTML="<span class=\'dash\'>—</span>";grid.appendChild(cell);return;}\n'+
+    '      if(isOff(ds,sl.key)){cell.className="cell off";cell.innerHTML="<span class=\'off-lbl\'>停課</span>";grid.appendChild(cell);return;}\n'+
+    '      var stus=gs(ds,sl.key),full=stus.length>=sd.max;\n'+
+    '      cell.className="cell"+(full?" full":"");\n'+
+    '      stus.forEach(function(name){\n'+
+    '        var c=document.createElement("div");c.className="chip";c.textContent=name;c.title=name;\n'+
+    '        cell.appendChild(c);\n'+
+    '      });\n'+
+    '      var ft=document.createElement("div");ft.className="footer";ft.textContent=stus.length+"/"+sd.max;\n'+
+    '      cell.appendChild(ft);\n'+
+    '      grid.appendChild(cell);\n'+
+    '    });\n'+
+    '  });\n'+
+    '}\n'+
+    'document.getElementById("prev").onclick=function(){wOff--;render();};\n'+
+    'document.getElementById("next").onclick=function(){wOff++;render();};\n'+
+    'document.getElementById("toToday").onclick=function(){wOff=0;render();};\n'+
+    'firebase.initializeApp(FB);\n'+
+    'firebase.database().ref("knitting/bookings").on("value",function(snap){\n'+
+    '  bk=snap.val()||{};\n'+
+    '  render();\n'+
+    '  document.getElementById("dot").className="dot ok";\n'+
+    '  document.getElementById("syncTxt").textContent="即時同步中";\n'+
+    '},function(){\n'+
+    '  document.getElementById("dot").className="dot err";\n'+
+    '  document.getElementById("syncTxt").textContent="連線失敗";\n'+
+    '});\n'+
+    'render();\n';
+
+  var html='<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>毛線森林－本週劃位</title>'
+    +'<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"><\/script>'
+    +'<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"><\/script>'
+    +'<style>'+css+'<\/style><\/head><body>'
+    +'<div class="header"><h1>毛線森林－劃位查看</h1>'
+    +'<div class="sync"><div class="dot loading" id="dot"></div><span id="syncTxt">連線中…</span></div></div>'
+    +'<div class="content">'
+    +'<div class="nav">'
+    +'<button class="nav-btn" id="prev">&#8249;</button>'
+    +'<span class="week-lbl" id="wlbl"></span>'
+    +'<button class="nav-btn" id="next">&#8250;</button>'
+    +'<button class="nav-btn" id="toToday" style="font-size:12px;width:auto;padding:0 10px">本週</button>'
+    +'<button class="print-btn" onclick="window.print()">🖨 列印本週</button>'
+    +'</div>'
+    +'<div class="avail-bar" id="bar"></div>'
+    +'<div class="grid" id="grid"></div>'
+    +'</div>'
+    +'<script>'+js+'<\/script>'
+    +'</body></html>';
+
+  var blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='毛線森林_查看頁.html';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+// ── 頁面切換 ─────────────────────────────────────────────
+function showRecordsPage(){
+  document.getElementById('pageSchedule').classList.add('hidden');
+  document.getElementById('pageRecords').classList.add('active');
+  recFilter();
+}
+function showSchedulePage(){
+  document.getElementById('pageRecords').classList.remove('active');
+  document.getElementById('pageSchedule').classList.remove('hidden');
+}
+
+// ── 學生記錄（全頁）─────────────────────────────────────
+function nk(n){return n.replace(/[.#$[\]/\s]/g,'_');}
+function recGetAttended(name){
+  const key=nk(name);let cnt=0;
+  Object.values(attendanceData).forEach(s=>{if(s&&s[key])cnt++;});
+  return cnt;
+}
+function recGetPurchased(stu){return(stu.purchases||[]).reduce((s,p)=>s+(p.count||0),0);}
+
+function recFilter(){
+  const q=(document.getElementById('recSearch')||{value:''}).value.trim().toLowerCase();
+  const list=Object.entries(studentsData)
+    .filter(([k,s])=>!q||s.name.toLowerCase().includes(q))
+    .sort((a,b)=>a[1].name.localeCompare(b[1].name,'zh-Hant'));
+  recRenderList(list);
+}
+
+function recRenderList(list){
+  const el=document.getElementById('stuList');if(!el)return;
+  if(!list.length){
+    el.innerHTML='<div class="rec-empty-page">還沒有學生記錄<br>點「＋ 新增學生」開始建立</div>';return;
+  }
+  el.innerHTML='';
+  list.forEach(([key,stu])=>{
+    const purchased=recGetPurchased(stu);
+    const attended=recGetAttended(stu.name);
+    const remaining=purchased-attended;
+    const remCls=remaining<=0?'remain-zero':remaining<=2?'remain-warn':'remain-ok';
+    const card=document.createElement('div');card.className='stu-card';
+
+    // 購買記錄列表（每筆可編輯/刪除）
+    const purchases=stu.purchases||[];
+    let histHtml='';
+    if(purchases.length){
+      histHtml='<div class="stu-hist" style="margin-bottom:8px">';
+      purchases.forEach((p,i)=>{
+        histHtml+=`<span class="hist-item">
+          <span class="hist-date">${p.date}</span>
+          <span class="hist-cnt">+${p.count}堂</span>
+          <button class="hist-edit" onclick="openEditPurchase('${key}',${i})" title="編輯">✏️</button>
+          <button class="hist-del" onclick="openDelPurchase('${key}',${i})" title="刪除">🗑</button>
+        </span>`;
+      });
+      histHtml+='</div>';
+    }
+
+    card.innerHTML=`
+      <div class="stu-head">
+        <div class="stu-name">${stu.name}</div>
+        <div class="stu-stats">
+          <span class="stat-pill pill-total">購買 ${purchased}</span>
+          <span class="stat-pill pill-used">已上 ${attended}</span>
+          <span class="stat-pill pill-remain ${remCls}">剩 ${remaining}</span>
+        </div>
+      </div>
+      ${histHtml}
+      <div class="stu-actions">
+        <button class="act-btn buy" onclick="openRecBuyModal('${key}')">＋ 購買堂數</button>
+        <button class="act-btn del" onclick="openRecDelModal('${key}')">刪除學生</button>
+      </div>`;
+    el.appendChild(card);
+  });
+}
+
+function closeModal2(id){document.getElementById(id).style.display='none';}
+document.querySelectorAll('.modal2-bg').forEach(bg=>bg.onclick=e=>{if(e.target===bg)bg.style.display='none';});
+
+let recPendingKey=null;
+
+function openRecAddModal(){
+  document.getElementById('recAddName').value='';
+  document.getElementById('recAddErr').textContent='';
+  document.getElementById('recAddModal').style.display='flex';
+  setTimeout(()=>document.getElementById('recAddName').focus(),50);
+}
+document.getElementById('recAddName').onkeydown=e=>{if(e.key==='Enter')doRecAdd();};
+function doRecAdd(){
+  const name=document.getElementById('recAddName').value.trim();
+  const err=document.getElementById('recAddErr');
+  if(!name){err.textContent='請輸入姓名';return;}
+  const key=nk(name);
+  if(studentsData[key]){err.textContent='此學生已存在';return;}
+  if(db)db.ref('knitting/students/'+key).set({name,purchases:[]});
+  closeModal2('recAddModal');
+}
+
+function openRecBuyModal(key){
+  recPendingKey=key;
+  const stu=studentsData[key];if(!stu)return;
+  const purchased=recGetPurchased(stu),attended=recGetAttended(stu.name),remaining=purchased-attended;
+  document.getElementById('recBuyTitle').textContent='購買堂數　—　'+stu.name;
+  document.getElementById('recBuySub').textContent=`目前：購買 ${purchased} / 已上 ${attended} / 剩餘 ${remaining}`;
+  document.getElementById('recBuyCount').value='';
+  document.getElementById('recBuyErr').textContent='';
+  document.getElementById('recBuyModal').style.display='flex';
+  setTimeout(()=>document.getElementById('recBuyCount').focus(),50);
+}
+document.getElementById('recBuyCount').onkeydown=e=>{if(e.key==='Enter')doRecBuy();};
+function doRecBuy(){
+  const n=parseInt(document.getElementById('recBuyCount').value);
+  const err=document.getElementById('recBuyErr');
+  if(!n||n<1){err.textContent='請輸入有效堂數';return;}
+  const stu=studentsData[recPendingKey];if(!stu)return;
+  const purchases=[...(stu.purchases||[]),{date:fd(new Date()),count:n}];
+  if(db)db.ref('knitting/students/'+recPendingKey+'/purchases').set(purchases);
+  closeModal2('recBuyModal');
+}
+
+let recPendingPurchaseIdx=null;
+
+function openEditPurchase(key,idx){
+  recPendingKey=key;recPendingPurchaseIdx=idx;
+  const stu=studentsData[key];if(!stu)return;
+  const p=stu.purchases[idx];
+  document.getElementById('recEditPurchaseSub').textContent=`${stu.name}・${p.date}`;
+  document.getElementById('recEditPurchaseCount').value=p.count;
+  document.getElementById('recEditPurchaseErr').textContent='';
+  document.getElementById('recEditPurchaseModal').style.display='flex';
+  setTimeout(()=>{const inp=document.getElementById('recEditPurchaseCount');inp.focus();inp.select();},50);
+}
+document.getElementById('recEditPurchaseCount').onkeydown=e=>{if(e.key==='Enter')doEditPurchase();};
+function doEditPurchase(){
+  const n=parseInt(document.getElementById('recEditPurchaseCount').value);
+  const err=document.getElementById('recEditPurchaseErr');
+  if(!n||n<1){err.textContent='請輸入有效堂數';return;}
+  const stu=studentsData[recPendingKey];if(!stu)return;
+  stu.purchases[recPendingPurchaseIdx].count=n;
+  if(db)db.ref('knitting/students/'+recPendingKey+'/purchases').set(stu.purchases);
+  closeModal2('recEditPurchaseModal');
+}
+
+function openDelPurchase(key,idx){
+  recPendingKey=key;recPendingPurchaseIdx=idx;
+  const stu=studentsData[key];if(!stu)return;
+  const p=stu.purchases[idx];
+  document.getElementById('recDelSub').textContent=`確定刪除「${stu.name}」${p.date} +${p.count}堂 這筆記錄嗎？`;
+  // 覆寫確認按鈕行為
+  document.getElementById('recDelModal').dataset.mode='purchase';
+  document.getElementById('recDelModal').style.display='flex';
+}
+
+function doRecDel(){
+  if(document.getElementById('recDelModal').dataset.mode==='purchase'){
+    const stu=studentsData[recPendingKey];if(!stu)return;
+    stu.purchases.splice(recPendingPurchaseIdx,1);
+    if(db)db.ref('knitting/students/'+recPendingKey+'/purchases').set(stu.purchases);
+  } else {
+    if(!recPendingKey)return;
+    if(db)db.ref('knitting/students/'+recPendingKey).remove();
+  }
+  closeModal2('recDelModal');
+  document.getElementById('recDelModal').dataset.mode='';
+}
+
+function openRecDelModal(key){
+  recPendingKey=key;
+  const stu=studentsData[key];if(!stu)return;
+  document.getElementById('recDelSub').textContent=`確定要刪除「${stu.name}」的所有記錄嗎？此操作無法復原。`;
+  document.getElementById('recDelModal').dataset.mode='student';
+  document.getElementById('recDelModal').style.display='flex';
+}
+
+// ── 啟動 ─────────────────────────────────────────────────
+// 先從 localStorage 快速顯示
+try{const v=JSON.parse(localStorage.getItem('knitting_v9')||'null');if(v)data=v;}catch(e){}
+render();
+
+// Firebase 即時監聽（資料）
+if(dataRef){
+  dataRef.on('value',snap=>{
+    const val=snap.val();
+    if(val){data=val;try{localStorage.setItem('knitting_v9',JSON.stringify(data));}catch(e){}}
+    setSyncStatus('ok','已同步');
+    render();
+  },()=>setSyncStatus('err','連線失敗'));
+}
+
+// Firebase 即時監聽（出席）
+if(db){
+  db.ref('knitting/attendance').on('value',snap=>{
+    attendanceData=snap.val()||{};
+    Object.entries(attendanceData).forEach(([k,v])=>{data['att_'+k]=v;});
+    render();
+    recFilter();
+  });
+  db.ref('knitting/students').on('value',snap=>{
+    studentsData=snap.val()||{};
+    recFilter();
+  });
+}
+
+// Firebase 即時監聽（預約申請）
+if(reqRef){
+  reqRef.on('value',snap=>{
+    pendingReqs={};
+    const val=snap.val();
+    if(val){Object.entries(val).forEach(([k,v])=>{if(v.status==='pending')pendingReqs[k]=v;});}
+    const cnt=Object.keys(pendingReqs).length;
+    const badge=document.getElementById('reqBadge');
+    const tabBadge=document.getElementById('tabReqBadge');
+    if(cnt>0){badge.textContent=cnt;badge.style.display='inline';tabBadge.textContent=cnt;tabBadge.style.display='inline';}
+    else{badge.style.display='none';tabBadge.style.display='none';}
+  });
+}
+
+// ── 匯出本週 ─────────────────────────────────────────────
+function exportWeek(){
+  const mon=getMon(wOff);
+  const dates=Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return d;});
+  const sun=new Date(mon);sun.setDate(mon.getDate()+6);
+  const weekLabel=fmd(mon)+' – '+fmd(sun);
+  const activeKeys=new Set();dates.forEach(d=>{(SCHEDULE[d.getDay()]||[]).forEach(s=>activeKeys.add(s.key));});
+  const activeSlots=ALL_SLOTS.filter(s=>activeKeys.has(s.key));
+  const colW=Math.floor(88/7);
+  let tableHead='<th style="width:64px"></th>';
+  dates.forEach(d=>{
+    const dow=d.getDay();const hasS=!!(SCHEDULE[dow]||[]).length;
+    tableHead+=`<th style="width:${colW}%;text-align:center;font-size:11px;color:${hasS?'#333':'#bbb'};font-weight:500;padding:6px 2px">週${DAYS[dow]}<br><span style="font-size:10px;opacity:.7">${fmd(d)}</span></th>`;
+  });
+  let tableRows='';
+  const bgMap={m:'#EAF3DE',a:'#E6F1FB',n:'#FAEEDA'};
+  const clrMap={m:'#27500A',a:'#0C447C',n:'#633806'};
+  activeSlots.forEach(slot=>{
+    let row=`<tr><td style="padding:6px 8px 6px 0;vertical-align:middle;white-space:nowrap"><span style="display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:12px;background:${bgMap[slot.key]};color:${clrMap[slot.key]}">${slot.label}</span><div style="font-size:9px;color:#aaa;margin-top:3px">${slot.time}</div></td>`;
+    dates.forEach(d=>{
+      const dow=d.getDay(),ds=fd(d);
+      const sd=(SCHEDULE[dow]||[]).find(s=>s.key===slot.key);
+      if(!sd){row+=`<td style="border:0.5px solid #eee;background:#f8f8f8;text-align:center;color:#ccc;font-size:11px">—</td>`;return;}
+      if(isOff(ds,slot.key)){row+=`<td style="border:0.5px dashed #ddd;background:#fafafa;text-align:center;font-size:11px;color:#bbb;padding:6px">停課</td>`;return;}
+      const stus=gs(ds,slot.key);const full=stus.length>=sd.max;
+      const names=stus.map(n=>`<div style="font-size:11px;padding:3px 6px;margin:2px 0;background:#FCEBEB;border:0.5px solid #F7C1C1;border-radius:4px;color:#791F1F">${n}</div>`).join('');
+      row+=`<td style="border:0.5px solid ${full?'#F7C1C1':'#e8e8e8'};padding:5px;vertical-align:top"><div style="font-size:9px;color:${full?'#A32D2D':'#bbb'};text-align:right;margin-bottom:3px">${stus.length}/${sd.max}</div>${names}</td>`;
+    });
+    row+='</tr>';tableRows+=row;
+  });
+  const html=`<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>毛線森林劃位表 ${weekLabel}</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,'Helvetica Neue',Arial,sans-serif}header{background:#4b6cb3;padding:.9rem 1.5rem;text-align:center}h1{color:#fff;font-size:17px;font-weight:700}header p{color:rgba(255,255,255,.8);font-size:12px;margin-top:4px}.page{padding:1rem 1.25rem}table{width:100%;border-collapse:collapse}th{background:#f5f5f5;padding:6px 4px;border:0.5px solid #e0e0e0}td{vertical-align:top}</style></head><body><header><h1>毛線森林－劃位表</h1><p>${weekLabel}</p></header><div class="page"><table><thead><tr>${tableHead}</tr></thead><tbody>${tableRows}</tbody></table></div></body></html>`;
+  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=`毛線森林劃位表_${fmd(mon).replace('/','')}-${fmd(sun).replace('/','')}.html`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+// ── 產生預約頁（Firebase 即時版）────────────────────────────
+function exportBooking(){
+  const fbCfgStr='{"apiKey":"AIzaSyBp_iwZ_g1AllGoaSFVPXYiO-Z8ErFD8S0","authDomain":"maoxian-forest.firebaseapp.com","databaseURL":"https://maoxian-forest-default-rtdb.asia-southeast1.firebasedatabase.app","projectId":"maoxian-forest","storageBucket":"maoxian-forest.firebasestorage.app","messagingSenderId":"752232018965","appId":"1:752232018965:web:a57ddf665f1ed112430a1c"}';
+  const scheduleStr=JSON.stringify(SCHEDULE);
+
+  const css='*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,sans-serif;background:#f4f6fb;min-height:100vh}header{background:#4b6cb3;padding:1rem 1.5rem;text-align:center}header h1{color:#fff;font-size:17px;font-weight:700}header p{color:rgba(255,255,255,.75);font-size:12px;margin-top:4px}.content{max-width:640px;margin:0 auto;padding:1.25rem 1rem}.week-block{margin-bottom:1.75rem}.week-title{font-size:12px;font-weight:600;color:#888;margin-bottom:.6rem;padding-bottom:.4rem;border-bottom:1px solid #e8e8e8}.slots{display:flex;flex-direction:column;gap:8px}.slot-card{background:#fff;border-radius:10px;border:1.5px solid #e8e8e8;padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .15s}.slot-card:hover:not(.full){border-color:#4b6cb3;box-shadow:0 2px 8px rgba(75,108,179,.12)}.slot-card.full{opacity:.55;cursor:default;border-color:#F7C1C1;background:#fff8f8}.slot-card.low{border-color:#f0b429}.badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:12px;flex-shrink:0}.bm{background:#EAF3DE;color:#27500A}.ba{background:#E6F1FB;color:#0C447C}.bn{background:#FAEEDA;color:#633806}.slot-info{flex:1;min-width:0}.slot-date{font-size:13px;font-weight:600;color:#1a1a1a}.slot-time{font-size:11px;color:#888;margin-top:1px}.avail-pill{flex-shrink:0;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px}.avail-ok{background:#e8f5e9;color:#2e7d32}.avail-low{background:#fff8e1;color:#e65100}.avail-full{background:#fdecea;color:#c62828}.empty{text-align:center;font-size:13px;color:#aaa;padding:2rem 0}.loading{text-align:center;padding:2rem;color:#aaa;font-size:13px}.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:99;padding:1rem;backdrop-filter:blur(3px)}.modal{background:#fff;border-radius:14px;padding:22px 20px;width:100%;max-width:340px;box-shadow:0 12px 40px rgba(0,0,0,.15)}.modal h3{font-size:14px;font-weight:700;margin-bottom:4px}.modal .sub{font-size:11px;color:#888;margin-bottom:14px}.modal input{width:100%;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;outline:none;font-family:inherit}.modal input:focus{border-color:#4b6cb3}.modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}.modal-btns button{padding:7px 16px;border-radius:8px;font-size:12px;cursor:pointer;border:1px solid #ddd;background:#f5f5f5;color:#444}.modal-btns .ok{background:#4b6cb3;color:#fff;border-color:#4b6cb3}.sent-box{background:#eaf5ea;border:1.5px solid #a5d6a7;border-radius:10px;padding:16px;text-align:center;display:none}.sent-icon{font-size:28px;margin-bottom:6px}.sent-txt{font-size:13px;color:#2e7d32;font-weight:600}.sent-sub{font-size:11px;color:#555;margin-top:4px}';
+
+  const js=
+    'var FB_CFG='+fbCfgStr+';\n'+
+    'var SCHEDULE='+scheduleStr+';\n'+
+    'var DAYS=["日","一","二","三","四","五","六"];\n'+
+    'var CLS={m:"bm",a:"ba",n:"bn"};\n'+
+    'var TMAP={m:"10:15–12:15",a:"15:00–17:00",n:"19:00–21:00"};\n'+
+    'var bookings={},activeSlot=null;\n'+
+    'function getMon(off){\n'+
+    '  var now=new Date(),day=now.getDay(),mon=new Date(now);\n'+
+    '  mon.setDate(now.getDate()-day+(day===0?-6:1)+off*7);mon.setHours(0,0,0,0);return mon;\n'+
+    '}\n'+
+    'function fd(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}\n'+
+    'function fmd(d){return(d.getMonth()+1)+"/"+(d.getDate());}\n'+
+    'function gs(ds,k){return bookings[ds+"_"+k]||[];}\n'+
+    'function isOff(ds,k){return!!bookings[ds+"_"+k+"_off"];}\n'+
+    'function render(){\n'+
+    '  var app=document.getElementById("app");app.innerHTML="";\n'+
+    '  var hasAny=false;\n'+
+    '  for(var w=0;w<4;w++){\n'+
+    '    var mon=getMon(w);\n'+
+    '    var dates=[];\n'+
+    '    for(var i=0;i<7;i++){var dd=new Date(mon);dd.setDate(mon.getDate()+i);dates.push(dd);}\n'+
+    '    var sun=new Date(mon);sun.setDate(mon.getDate()+6);\n'+
+    '    var wl=fmd(mon)+" – "+fmd(sun);\n'+
+    '    var weekSlots=[];\n'+
+    '    dates.forEach(function(d){\n'+
+    '      var dow=d.getDay(),ds=fd(d);\n'+
+    '      (SCHEDULE[dow]||[]).forEach(function(sd){\n'+
+    '        if(isOff(ds,sd.key))return;\n'+
+    '        var booked=gs(ds,sd.key).length;\n'+
+    '        weekSlots.push({date:ds,dow:dow,d:d,key:sd.key,label:sd.label,time:sd.time,max:sd.max,booked:booked});\n'+
+    '      });\n'+
+    '    });\n'+
+    '    if(!weekSlots.length)continue;\n'+
+    '    hasAny=true;\n'+
+    '    var block=document.createElement("div");block.className="week-block";\n'+
+    '    var title=document.createElement("div");title.className="week-title";title.textContent=wl;\n'+
+    '    block.appendChild(title);\n'+
+    '    var slotsDiv=document.createElement("div");slotsDiv.className="slots";\n'+
+    '    weekSlots.forEach(function(s){\n'+
+    '      var avail=s.max-s.booked,full=avail<=0,low=!full&&avail<=2;\n'+
+    '      var pillCls=full?"avail-full":low?"avail-low":"avail-ok";\n'+
+    '      var pillTxt=full?"已額滿":avail+"位空位";\n'+
+    '      var card=document.createElement("div");\n'+
+    '      card.className="slot-card"+(full?" full":low?" low":"");\n'+
+    '      card.innerHTML="<span class=\'badge "+CLS[s.key]+"\'>"+s.label+"</span>"+\n'+
+    '        "<div class=\'slot-info\'><div class=\'slot-date\'>"+fmd(s.d)+" 週"+DAYS[s.dow]+"</div>"+\n'+
+    '        "<div class=\'slot-time\'>"+s.time+"</div></div>"+\n'+
+    '        "<span class=\'avail-pill "+pillCls+"\'>"+pillTxt+"</span>";\n'+
+    '      if(!full){card.onclick=(function(sl){return function(){openModal(sl);};})(s);}\n'+
+    '      slotsDiv.appendChild(card);\n'+
+    '    });\n'+
+    '    block.appendChild(slotsDiv);app.appendChild(block);\n'+
+    '  }\n'+
+    '  if(!hasAny){app.innerHTML="<div class=\'empty\'>目前沒有可預約的時段</div>";}\n'+
+    '}\n'+
+    'function openModal(s){\n'+
+    '  activeSlot=s;\n'+
+    '  document.getElementById("mTitle").textContent=fmd(s.d)+" 週"+DAYS[s.dow]+" "+s.label;\n'+
+    '  document.getElementById("mSub").textContent=s.time+"　剩餘 "+(s.max-s.booked)+" 位";\n'+
+    '  document.getElementById("mInput").value="";\n'+
+    '  document.getElementById("sentBox").style.display="none";\n'+
+    '  document.getElementById("mBtns").style.display="flex";\n'+
+    '  document.getElementById("mInput").style.display="block";\n'+
+    '  document.getElementById("modal").style.display="flex";\n'+
+    '  setTimeout(function(){document.getElementById("mInput").focus();},50);\n'+
+    '}\n'+
+    'function closeModal(){document.getElementById("modal").style.display="none";activeSlot=null;}\n'+
+    'document.getElementById("modal").onclick=function(e){if(e.target===document.getElementById("modal"))closeModal();};\n'+
+    'document.getElementById("mInput").onkeydown=function(e){if(e.key==="Enter")submitReq();};\n'+
+    'document.getElementById("mBtnsOk").onclick=function(){submitReq();};\n'+
+    'document.getElementById("mBtnsCancel").onclick=function(){closeModal();};\n'+
+    'function submitReq(){\n'+
+    '  var name=document.getElementById("mInput").value.trim();\n'+
+    '  if(!name){document.getElementById("mInput").style.borderColor="#E24B4A";setTimeout(function(){document.getElementById("mInput").style.borderColor="";},1500);return;}\n'+
+    '  var db=firebase.database();\n'+
+    '  var bookKey=activeSlot.date+"_"+activeSlot.key;\n'+
+    '  var arr=(bookings[bookKey]||[]).slice();\n'+
+    '  var dow=new Date(activeSlot.date).getDay();\n'+
+    '  var sd=(SCHEDULE[dow]||[]).find(function(s){return s.key===activeSlot.key;});\n'+
+    '  if(!sd||arr.length>=sd.max){\n'+
+    '    document.getElementById("mSub").textContent="此時段已額滿，請選擇其他時段";\n'+
+    '    document.getElementById("mSub").style.color="#E24B4A";\n'+
+    '    return;\n'+
+    '  }\n'+
+    '  if(arr.indexOf(name)!==-1){\n'+
+    '    document.getElementById("mSub").textContent="此姓名已在名單中";\n'+
+    '    document.getElementById("mSub").style.color="#E24B4A";\n'+
+    '    return;\n'+
+    '  }\n'+
+    '  arr.push(name);\n'+
+    '  db.ref("knitting/bookings/"+bookKey).set(arr);\n'+
+    '  db.ref("knitting/requests").push({date:activeSlot.date,slotKey:activeSlot.key,slotLabel:activeSlot.label,time:activeSlot.time,name:name,timestamp:Date.now(),status:"pending"});\n'+
+    '  document.getElementById("mInput").style.display="none";\n'+
+    '  document.getElementById("mBtns").style.display="none";\n'+
+    '  document.getElementById("sentBox").style.display="block";\n'+
+    '}\n'+
+    'firebase.initializeApp(FB_CFG);\n'+
+    'firebase.database().ref("knitting/bookings").on("value",function(snap){\n'+
+    '  bookings=snap.val()||{};\n'+
+    '  render();\n'+
+    '  document.getElementById("loadingMsg").style.display="none";\n'+
+    '});\n';
+
+  var html='<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>毛線森林－預約劃位</title>'
+    +'<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"><\/script>'
+    +'<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"><\/script>'
+    +'<style>'+css+'<\/style><\/head><body>'
+    +'<header><h1>毛線森林－預約劃位</h1><p>點選有空位的時段即可送出預約申請</p></header>'
+    +'<div class="content"><div id="loadingMsg" class="loading">載入中…</div><div id="app"></div></div>'
+    +'<div class="modal-bg" id="modal" style="display:none"><div class="modal">'
+    +'<h3 id="mTitle"></h3><div class="sub" id="mSub"></div>'
+    +'<input id="mInput" placeholder="請輸入您的姓名" maxlength="20"/>'
+    +'<div class="sent-box" id="sentBox"><div class="sent-icon">✅</div><div class="sent-txt">名額已保留！</div><div class="sent-sub">您的座位已立即預扣，老師確認後完成劃位。</div></div>'
+    +'<div class="modal-btns" id="mBtns"><button id="mBtnsCancel">取消</button><button class="ok" id="mBtnsOk">送出預約</button></div>'
+    +'</div></div>'
+    +'<script>'+js+'<\/script>'
+    +'</body></html>';
+
+  var blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='毛線森林_預約頁.html';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+</script>
+</body>
+</html>
