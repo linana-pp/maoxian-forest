@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>毛線森林－預約劃位</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,sans-serif;background:#f4f6fb;min-height:100vh}header{background:#4b6cb3;padding:1rem 1.5rem;text-align:center}header h1{color:#fff;font-size:17px;font-weight:700}header p{color:rgba(255,255,255,.75);font-size:12px;margin-top:4px}.content{max-width:640px;margin:0 auto;padding:1.25rem 1rem}.week-block{margin-bottom:1.75rem}.week-title{font-size:12px;font-weight:600;color:#888;margin-bottom:.6rem;padding-bottom:.4rem;border-bottom:1px solid #e8e8e8}.slots{display:flex;flex-direction:column;gap:8px}.slot-card{background:#fff;border-radius:10px;border:1.5px solid #e8e8e8;padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .15s}.slot-card:hover:not(.full){border-color:#4b6cb3;box-shadow:0 2px 8px rgba(75,108,179,.12)}.slot-card.full{opacity:.55;cursor:default;border-color:#F7C1C1;background:#fff8f8}.slot-card.low{border-color:#f0b429}.badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:12px;flex-shrink:0}.bm{background:#EAF3DE;color:#27500A}.ba{background:#E6F1FB;color:#0C447C}.bn{background:#FAEEDA;color:#633806}.slot-info{flex:1;min-width:0}.slot-date{font-size:13px;font-weight:600;color:#1a1a1a}.slot-time{font-size:11px;color:#888;margin-top:1px}.avail-pill{flex-shrink:0;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px}.avail-ok{background:#e8f5e9;color:#2e7d32}.avail-low{background:#fff8e1;color:#e65100}.avail-full{background:#fdecea;color:#c62828}.empty{text-align:center;font-size:13px;color:#aaa;padding:2rem 0}.loading{text-align:center;padding:2rem;color:#aaa;font-size:13px}.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:99;padding:1rem;backdrop-filter:blur(3px)}.modal{background:#fff;border-radius:14px;padding:22px 20px;width:100%;max-width:340px;box-shadow:0 12px 40px rgba(0,0,0,.15)}.modal h3{font-size:14px;font-weight:700;margin-bottom:4px}.modal .sub{font-size:11px;color:#888;margin-bottom:14px}.modal input{width:100%;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;outline:none;font-family:inherit}.modal input:focus{border-color:#4b6cb3}.modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}.modal-btns button{padding:7px 16px;border-radius:8px;font-size:12px;cursor:pointer;border:1px solid #ddd;background:#f5f5f5;color:#444}.modal-btns .ok{background:#4b6cb3;color:#fff;border-color:#4b6cb3}.sent-box{background:#eaf5ea;border:1.5px solid #a5d6a7;border-radius:10px;padding:16px;text-align:center;display:none}.sent-icon{font-size:28px;margin-bottom:6px}.sent-txt{font-size:13px;color:#2e7d32;font-weight:600}.sent-sub{font-size:11px;color:#555;margin-top:4px}
+</style>
+</head>
+<body>
+<header><h1>毛線森林－預約劃位</h1><p>點選時段填入姓名送出預約申請</p></header>
+<div class="content"><div id="loadingMsg" class="loading">載入中…</div><div id="app"></div></div>
+<div class="modal-bg" id="modal" style="display:none">
+  <div class="modal">
+    <h3 id="mTitle"></h3><div class="sub" id="mSub"></div>
+    <input id="mInput" placeholder="請輸入您的姓名" maxlength="20"/>
+    <div class="sent-box" id="sentBox"><div class="sent-icon">✅</div><div class="sent-txt">名額已保留！</div><div class="sent-sub">您的座位已立即預扣，老師確認後完成劃位。</div></div>
+    <div class="modal-btns" id="mBtns"><button id="mBtnsCancel">取消</button><button class="ok" id="mBtnsOk">送出預約</button></div>
+  </div>
+</div>
+<script>
+var FB={"apiKey":"AIzaSyBp_iwZ_g1AllGoaSFVPXYiO-Z8ErFD8S0","authDomain":"maoxian-forest.firebaseapp.com","databaseURL":"https://maoxian-forest-default-rtdb.asia-southeast1.firebasedatabase.app","projectId":"maoxian-forest","storageBucket":"maoxian-forest.firebasestorage.app","messagingSenderId":"752232018965","appId":"1:752232018965:web:a57ddf665f1ed112430a1c"};
+var SCHEDULE={1:[{key:"m",label:"早上",cls:"bm",time:"10:15–12:15",max:7}],2:[{key:"m",label:"早上",cls:"bm",time:"10:15–12:15",max:4},{key:"a",label:"下午",cls:"ba",time:"15:00–17:00",max:4},{key:"n",label:"晚上",cls:"bn",time:"19:00–21:00",max:7}],5:[{key:"a",label:"下午",cls:"ba",time:"15:00–17:00",max:4}],6:[{key:"m",label:"早上",cls:"bm",time:"10:15–12:15",max:7},{key:"a",label:"下午",cls:"ba",time:"15:00–17:00",max:4}]};
+var DAYS=["日","一","二","三","四","五","六"];
+var CLS={m:"bm",a:"ba",n:"bn"};
+var bookings={},activeSlot=null;
+function getMon(off){var now=new Date(),day=now.getDay(),mon=new Date(now);mon.setDate(now.getDate()-day+(day===0?-6:1)+off*7);mon.setHours(0,0,0,0);return mon;}
+function fd(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function fmd(d){return(d.getMonth()+1)+"/"+(d.getDate());}
+function gs(ds,k){return bookings[ds+"_"+k]||[];}
+function isOff(ds,k){return!!bookings[ds+"_"+k+"_off"];}
+function render(){
+  var app=document.getElementById("app");app.innerHTML="";
+  var hasAny=false;
+  for(var w=0;w<4;w++){
+    var mon=getMon(w),dates=[];
+    for(var i=0;i<7;i++){var dd=new Date(mon);dd.setDate(mon.getDate()+i);dates.push(dd);}
+    var sun=new Date(mon);sun.setDate(mon.getDate()+6);
+    var wl=fmd(mon)+" – "+fmd(sun);
+    var weekSlots=[];
+    dates.forEach(function(d){
+      var dow=d.getDay(),ds=fd(d);
+      (SCHEDULE[dow]||[]).forEach(function(sd){
+        if(isOff(ds,sd.key))return;
+        var booked=gs(ds,sd.key).length;
+        weekSlots.push({date:ds,dow:dow,d:d,key:sd.key,label:sd.label,time:sd.time,max:sd.max,booked:booked});
+      });
+    });
+    if(!weekSlots.length)continue;
+    hasAny=true;
+    var block=document.createElement("div");block.className="week-block";
+    var title=document.createElement("div");title.className="week-title";title.textContent=wl;
+    block.appendChild(title);
+    var slotsDiv=document.createElement("div");slotsDiv.className="slots";
+    weekSlots.forEach(function(s){
+      var avail=s.max-s.booked,full=avail<=0,low=!full&&avail<=2;
+      var pillCls=full?"avail-full":low?"avail-low":"avail-ok";
+      var pillTxt=full?"已額滿":avail+"位空位";
+      var card=document.createElement("div");
+      card.className="slot-card"+(full?" full":low?" low":"");
+      card.innerHTML="<span class='badge "+CLS[s.key]+"'>"+s.label+"</span>"+
+        "<div class='slot-info'><div class='slot-date'>"+fmd(s.d)+" 週"+DAYS[s.dow]+"</div>"+
+        "<div class='slot-time'>"+s.time+"</div></div>"+
+        "<span class='avail-pill "+pillCls+"'>"+pillTxt+"</span>";
+      if(!full){card.onclick=(function(sl){return function(){openModal(sl);};})(s);}
+      slotsDiv.appendChild(card);
+    });
+    block.appendChild(slotsDiv);app.appendChild(block);
+  }
+  if(!hasAny){app.innerHTML="<div class='empty'>目前沒有可預約的時段</div>";}
+}
+function openModal(s){
+  activeSlot=s;
+  document.getElementById("mTitle").textContent=fmd(s.d)+" 週"+DAYS[s.dow]+" "+s.label;
+  document.getElementById("mSub").textContent=s.time+"　剩餘 "+(s.max-s.booked)+" 位";
+  document.getElementById("mInput").value="";
+  document.getElementById("mInput").style.display="block";
+  document.getElementById("sentBox").style.display="none";
+  document.getElementById("mBtns").style.display="flex";
+  document.getElementById("modal").style.display="flex";
+  setTimeout(function(){document.getElementById("mInput").focus();},50);
+}
+function closeModal(){document.getElementById("modal").style.display="none";activeSlot=null;}
+document.getElementById("modal").onclick=function(e){if(e.target===document.getElementById("modal"))closeModal();};
+document.getElementById("mInput").onkeydown=function(e){if(e.key==="Enter")submitReq();};
+document.getElementById("mBtnsOk").onclick=function(){submitReq();};
+document.getElementById("mBtnsCancel").onclick=function(){closeModal();};
+function submitReq(){
+  var name=document.getElementById("mInput").value.trim();
+  if(!name){document.getElementById("mInput").style.borderColor="#E24B4A";setTimeout(function(){document.getElementById("mInput").style.borderColor="";},1500);return;}
+  var db=firebase.database();
+  var bookKey=activeSlot.date+"_"+activeSlot.key;
+  var arr=(bookings[bookKey]||[]).slice();
+  var dow=new Date(activeSlot.date).getDay();
+  var sd=(SCHEDULE[dow]||[]).find(function(s){return s.key===activeSlot.key;});
+  if(!sd||arr.length>=sd.max){document.getElementById("mSub").textContent="此時段已額滿，請選擇其他時段";document.getElementById("mSub").style.color="#E24B4A";return;}
+  if(arr.indexOf(name)!==-1){document.getElementById("mSub").textContent="此姓名已在名單中";document.getElementById("mSub").style.color="#E24B4A";return;}
+  arr.push(name);
+  db.ref("knitting/bookings/"+bookKey).set(arr);
+  db.ref("knitting/requests").push({date:activeSlot.date,slotKey:activeSlot.key,slotLabel:activeSlot.label,time:activeSlot.time,name:name,timestamp:Date.now(),status:"pending"});
+  document.getElementById("mInput").style.display="none";
+  document.getElementById("mBtns").style.display="none";
+  document.getElementById("sentBox").style.display="block";
+}
+firebase.initializeApp(FB);
+firebase.database().ref("knitting/bookings").on("value",function(snap){
+  bookings=snap.val()||{};
+  render();
+  document.getElementById("loadingMsg").style.display="none";
+});
+</script>
+</body>
+</html>

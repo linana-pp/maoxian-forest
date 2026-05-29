@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>毛線森林－劃位查看</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,"Helvetica Neue",Arial,sans-serif;background:#f7f7f9;color:#1a1a1a;min-height:100vh}.header{background:#4b6cb3;padding:.9rem 1.5rem;text-align:center;position:relative}h1{color:#fff;font-size:17px;font-weight:700}.sync{position:absolute;right:1rem;top:50%;transform:translateY(-50%);font-size:11px;color:rgba(255,255,255,.8);display:flex;align-items:center;gap:5px}.dot{width:7px;height:7px;border-radius:50%;background:#f2c94c}.dot.ok{background:#6fcf97}.dot.err{background:#eb5757}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}.dot.loading{animation:pulse 1s infinite}.content{max-width:900px;margin:0 auto;padding:1.25rem 1rem}.nav{display:flex;align-items:center;gap:8px;margin-bottom:1rem}.nav-btn{background:#fff;border:0.5px solid #ddd;border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;color:#444}.nav-btn:hover{background:#f0f0f0}.week-lbl{font-size:14px;font-weight:500;min-width:155px;text-align:center}.print-btn{background:#fff;border:0.5px solid #ddd;border-radius:8px;height:32px;padding:0 12px;cursor:pointer;font-size:12px;color:#555;display:flex;align-items:center;gap:5px}.print-btn:hover{background:#f0f0f0}.avail-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem}.pill{font-size:11px;padding:3px 9px;border-radius:20px;border:0.5px solid #e0e0e0;color:#666;display:flex;align-items:center;gap:5px;background:#fff}.pill strong{color:#1a1a1a}.badge{display:inline-block;font-size:10px;font-weight:500;padding:1px 7px;border-radius:20px;line-height:1.6}.bm{background:#EAF3DE;color:#27500A}.ba{background:#E6F1FB;color:#0C447C}.bn{background:#FAEEDA;color:#633806}.grid{display:grid;gap:5px}.col-head{font-size:11px;font-weight:500;color:#888;text-align:center;padding:5px 3px;border-radius:8px;line-height:1.4}.col-head.today{background:#EEEDFE;color:#3C3489}.col-head.no-class{opacity:.3}.row-lbl{display:flex;flex-direction:column;gap:2px;justify-content:center;align-items:flex-end;padding-right:6px}.row-time{font-size:9px;color:#bbb;white-space:nowrap}.cell{background:#fff;border:0.5px solid #e8e8e8;border-radius:8px;padding:6px 7px;min-height:52px;display:flex;flex-direction:column;gap:3px}.cell.off{background:#f8f8f8;border-style:dashed;border-color:#e0e0e0;align-items:center;justify-content:center}.cell.no-class{background:#f5f5f5;border-color:transparent;align-items:center;justify-content:center}.cell.full{border-color:#F7C1C1}.off-lbl{font-size:10px;color:#bbb}.chip{font-size:10px;padding:3px 8px;background:#FCEBEB;border:0.5px solid #F7C1C1;border-radius:4px;color:#791F1F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.footer{font-size:9px;color:#bbb;text-align:right;margin-top:auto}.cell.full .footer{color:#A32D2D}.dash{font-size:11px;color:#ccc}@media print{body{background:#fff}.header{background:#4b6cb3!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:.6rem 1rem}.sync,.nav{display:none!important}.content{padding:.5rem}.avail-bar{margin-bottom:.5rem}.badge{-webkit-print-color-adjust:exact;print-color-adjust:exact}.bm{background:#EAF3DE!important;color:#27500A!important}.ba{background:#E6F1FB!important;color:#0C447C!important}.bn{background:#FAEEDA!important;color:#633806!important}.chip{background:#FCEBEB!important;border-color:#F7C1C1!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.col-head.today{background:#EEEDFE!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.cell{min-height:36px;border:0.5px solid #ccc!important}.grid{gap:3px}}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>毛線森林－劃位查看</h1>
+  <div class="sync"><div class="dot loading" id="dot"></div><span id="syncTxt">連線中…</span></div>
+</div>
+<div class="content">
+  <div class="nav">
+    <button class="nav-btn" id="prev">&#8249;</button>
+    <span class="week-lbl" id="wlbl"></span>
+    <button class="nav-btn" id="next">&#8250;</button>
+    <button class="nav-btn" id="toToday" style="font-size:12px;width:auto;padding:0 10px">本週</button>
+    <button class="print-btn" onclick="window.print()">🖨 列印本週</button>
+  </div>
+  <div class="avail-bar" id="bar"></div>
+  <div class="grid" id="grid"></div>
+</div>
+<script>
+var FB={"apiKey":"AIzaSyBp_iwZ_g1AllGoaSFVPXYiO-Z8ErFD8S0","authDomain":"maoxian-forest.firebaseapp.com","databaseURL":"https://maoxian-forest-default-rtdb.asia-southeast1.firebasedatabase.app","projectId":"maoxian-forest","storageBucket":"maoxian-forest.firebasestorage.app","messagingSenderId":"752232018965","appId":"1:752232018965:web:a57ddf665f1ed112430a1c"};
+var SCH={1:[{key:"m",label:"早上",cls:"bm",time:"10:15–12:15",max:7}],2:[{key:"m",label:"早上",cls:"bm",time:"10:15–12:15",max:4},{key:"a",label:"下午",cls:"ba",time:"15:00–17:00",max:4},{key:"n",label:"晚上",cls:"bn",time:"19:00–21:00",max:7}],5:[{key:"a",label:"下午",cls:"ba",time:"15:00–17:00",max:4}],6:[{key:"m",label:"早上",cls:"bm",time:"10:15–12:15",max:7},{key:"a",label:"下午",cls:"ba",time:"15:00–17:00",max:4}]};
+var DAYS=["日","一","二","三","四","五","六"];
+var ALL=[{key:"m",label:"早上",cls:"bm",time:"10:15–12:15"},{key:"a",label:"下午",cls:"ba",time:"15:00–17:00"},{key:"n",label:"晚上",cls:"bn",time:"19:00–21:00"}];
+var bk={},wOff=0;
+function fd(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function fmd(d){return(d.getMonth()+1)+"/"+(d.getDate());}
+function getMon(off){var now=new Date(),day=now.getDay(),m=new Date(now);m.setDate(now.getDate()-day+(day===0?-6:1)+off*7);m.setHours(0,0,0,0);return m;}
+function gs(ds,k){return bk[ds+"_"+k]||[];}
+function isOff(ds,k){return!!bk[ds+"_"+k+"_off"];}
+function render(){
+  var mon=getMon(wOff),dates=[];
+  for(var i=0;i<7;i++){var d=new Date(mon);d.setDate(mon.getDate()+i);dates.push(d);}
+  var sun=new Date(mon);sun.setDate(mon.getDate()+6);
+  document.getElementById("wlbl").textContent=fmd(mon)+" – "+fmd(sun);
+  var bar=document.getElementById("bar");bar.innerHTML="";
+  ALL.forEach(function(sl){
+    var tot=0,used=0;
+    dates.forEach(function(d){var dow=d.getDay(),ds=fd(d),sd=(SCH[dow]||[]).find(function(s){return s.key===sl.key;});if(sd&&!isOff(ds,sl.key)){tot+=sd.max;used+=gs(ds,sl.key).length;}});
+    if(!tot)return;
+    var p=document.createElement("div");p.className="pill";
+    p.innerHTML="<span class='badge "+sl.cls+"'>"+sl.label+"</span> 空位 <strong>"+(tot-used)+"</strong>/<span style='color:#bbb'>"+tot+"</span>";
+    bar.appendChild(p);
+  });
+  var activeKeys=new Set();
+  dates.forEach(function(d){(SCH[d.getDay()]||[]).forEach(function(s){activeKeys.add(s.key);});});
+  var activeSlots=ALL.filter(function(s){return activeKeys.has(s.key);});
+  var grid=document.getElementById("grid");grid.innerHTML="";
+  grid.style.gridTemplateColumns="64px repeat(7,1fr)";
+  var todayStr=fd(new Date());
+  grid.appendChild(document.createElement("div"));
+  dates.forEach(function(d){
+    var dow=d.getDay(),h=document.createElement("div");
+    h.className="col-head"+(fd(d)===todayStr?" today":"")+(!(SCH[dow]||[]).length?" no-class":"");
+    h.innerHTML="週"+DAYS[dow]+"<br><span style='font-size:10px;opacity:.7'>"+fmd(d)+"</span>";
+    grid.appendChild(h);
+  });
+  activeSlots.forEach(function(sl){
+    var rl=document.createElement("div");rl.className="row-lbl";
+    rl.innerHTML="<span class='badge "+sl.cls+"'>"+sl.label+"</span><span class='row-time'>"+sl.time+"</span>";
+    grid.appendChild(rl);
+    dates.forEach(function(d){
+      var dow=d.getDay(),ds=fd(d),cell=document.createElement("div");
+      var sd=(SCH[dow]||[]).find(function(s){return s.key===sl.key;});
+      if(!sd){cell.className="cell no-class";cell.innerHTML="<span class='dash'>—</span>";grid.appendChild(cell);return;}
+      if(isOff(ds,sl.key)){cell.className="cell off";cell.innerHTML="<span class='off-lbl'>停課</span>";grid.appendChild(cell);return;}
+      var stus=gs(ds,sl.key),full=stus.length>=sd.max;
+      cell.className="cell"+(full?" full":"");
+      stus.forEach(function(name){var c=document.createElement("div");c.className="chip";c.textContent=name;c.title=name;cell.appendChild(c);});
+      var ft=document.createElement("div");ft.className="footer";ft.textContent=stus.length+"/"+sd.max;
+      cell.appendChild(ft);
+      grid.appendChild(cell);
+    });
+  });
+}
+document.getElementById("prev").onclick=function(){wOff--;render();};
+document.getElementById("next").onclick=function(){wOff++;render();};
+document.getElementById("toToday").onclick=function(){wOff=0;render();};
+firebase.initializeApp(FB);
+firebase.database().ref("knitting/bookings").on("value",function(snap){
+  bk=snap.val()||{};render();
+  document.getElementById("dot").className="dot ok";
+  document.getElementById("syncTxt").textContent="即時同步中";
+},function(){
+  document.getElementById("dot").className="dot err";
+  document.getElementById("syncTxt").textContent="連線失敗";
+});
+render();
+</script>
+</body>
+</html>
